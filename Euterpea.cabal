@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fe89379ff5e0bbbd17edd1bc060ed6eeb624e6fb4e2888d212d39242c98cc5d7
+-- hash: 46d57762e718e3860ff1bc83092f190a72155093e978a9f06733e07edc560940
 
 name:           Euterpea
 version:        2.0.6
@@ -75,6 +75,7 @@ library
     , deepseq
     , ghc-prim
     , heap
+    , lens
     , random
     , stm
   default-language: Haskell2010

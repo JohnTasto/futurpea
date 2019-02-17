@@ -54,6 +54,7 @@ dependencies:
   - heap
   - ghc-prim
   - QuickCheck
+  - lens
 
 library:
   source-dirs: ./.
