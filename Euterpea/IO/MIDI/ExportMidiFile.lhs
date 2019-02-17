@@ -2,21 +2,21 @@ MIDI File-writing module for use with Euterpea
 Donya Quick
 Last modified: 19-June-2013
 
-This file fixes some file-writing bugs in Codec.Midi that 
-prevent some multi-instrument output from showing up correctly. 
+This file fixes some file-writing bugs in Codec.Midi that
+prevent some multi-instrument output from showing up correctly.
 It defines the function exportMidiFile, which can be used like
 Codec.Midi's exportFile function. Additionally, it defines two
 functions for writing MIDI files, writeMidi and writeMidiA that
 are like test and testA respectively but with an additional file
 path argument.
 
-NOTE #1: some of the binary handling should be redone at some 
-point. Currently, parts of it are using conversion to a String 
-type, and although it works, it should not be necessary (or at 
+NOTE #1: some of the binary handling should be redone at some
+point. Currently, parts of it are using conversion to a String
+type, and although it works, it should not be necessary (or at
 least a cleaner way should be found).
 
-NOTE #2: many MIDI messages are currently unsupported. The set 
-of supported messages is limited to those that can be produced by 
+NOTE #2: many MIDI messages are currently unsupported. The set
+of supported messages is limited to those that can be produced by
 Euterpea.
 
 > module Euterpea.IO.MIDI.ExportMidiFile
@@ -24,9 +24,9 @@ Euterpea.
 > import Codec.Midi
 > import Numeric
 > import Data.Char
-> import qualified Data.ByteString as Byte 
+> import qualified Data.ByteString as Byte
 
-A standard MIDI file has two main sections: a header and a 
+A standard MIDI file has two main sections: a header and a
 series of track chunks. Track chunks each have a track header
 section and end with an end-of-track marker. Detailed infomation
 on the file format can be found here:
@@ -35,10 +35,10 @@ http://faydoc.tripod.com/formats/mid.htm
 
 
 > makeFile :: Midi -> Byte.ByteString
-> makeFile (Midi ft td trs) = 
->     let ticksPerQn = 
+> makeFile (Midi ft td trs) =
+>     let ticksPerQn =
 >             case td of TicksPerBeat x -> x
->                        TicksPerSecond x y -> 
+>                        TicksPerSecond x y ->
 >                            error ("(makeFile) Don't know how "++
 >                            "to handle TicksPerSecond yet.")
 >         header = makeHeader ft (length trs) ticksPerQn
@@ -52,8 +52,8 @@ BUILD FILE HEADER
 The standard MIDI file header starts with the following value:
 4D 54 68 00 00 00 06 ff ff nn nn dd dd
 
-ff ff is the format of the file: single-track, multi-track, or 
-multi-track/multi-pattern. Only the first two cases are addressed 
+ff ff is the format of the file: single-track, multi-track, or
+multi-track/multi-pattern. Only the first two cases are addressed
 here.
 
 nn nn is the number of tracks in the file.
@@ -61,18 +61,18 @@ nn nn is the number of tracks in the file.
 dd dd is the delta-time in ticks for a quarternote or beat.
 
 > midiHeaderConst :: Byte.ByteString
-> midiHeaderConst = 
->     Byte.pack [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06] 
+> midiHeaderConst =
+>     Byte.pack [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06]
 
 > type TrackCount = Int
 > type TicksPerQN = Int
 
 
-The MIDI file header is built as described above. 
+The MIDI file header is built as described above.
 
 > makeHeader :: FileType -> TrackCount -> TicksPerQN -> Byte.ByteString
-> makeHeader ft numTracks ticksPerQn = 
->     let 
+> makeHeader ft numTracks ticksPerQn =
+>     let
 >         ft' = case ft of SingleTrack -> [0x00, 0x00]
 >                          MultiTrack -> [0x00, 0x01]
 >                          MultiPattern -> error ("(makeHeader) Don't know "++
@@ -84,55 +84,55 @@ The MIDI file header is built as described above.
 >         else Byte.concat [midiHeaderConst, Byte.pack ft', numTracks', ticksPerQn']
 
 > padByte :: Integral a => Int -> a -> Byte.ByteString
-> padByte byteCount i = 
->   let b = Byte.pack [fromIntegral i] 
+> padByte byteCount i =
+>   let b = Byte.pack [fromIntegral i]
 >       n = Byte.length b
->       padding = Byte.pack $ take (byteCount - n) $ repeat 0x00
+>       padding = Byte.pack $ replicate (byteCount - n) 0x00
 >   in  if n < byteCount then Byte.concat [padding, b] else b
 
 ================
 
 BUILDING TRACKS
 
-A track consists of a track header, event information, and an 
+A track consists of a track header, event information, and an
 end-of-track marker. The track header has the format:
 
 4D 54 72 6B xx xx xx xx
 
-xx xx xx xx is the total number of BYTES in the track that 
+xx xx xx xx is the total number of BYTES in the track that
 follows the header. This includes the end marker! This value
 is obtained by generating the track first and then generating
 its header.
 
 > makeTrack :: Track Ticks -> Byte.ByteString
-> makeTrack t = 
+> makeTrack t =
 >     let body = makeTrackBody t
 >         header = makeTrackHeader body
 >     in  Byte.concat [header, body]
 
 > trackHeaderConst :: Byte.ByteString
-> trackHeaderConst = Byte.pack [0x4D, 0x54, 0x72, 0x6B] 
+> trackHeaderConst = Byte.pack [0x4D, 0x54, 0x72, 0x6B]
 
 > makeTrackHeader :: Byte.ByteString -> Byte.ByteString
-> makeTrackHeader tbody = 
+> makeTrackHeader tbody =
 >     let len = Byte.length tbody
->         f = Byte.pack . map (fromIntegral . binStrToNum . reverse) . 
+>         f = Byte.pack . map (fromIntegral . binStrToNum . reverse) .
 >             breakBinStrs 8 . pad (8*4) '0' . numToBinStr
 >     in  Byte.concat [trackHeaderConst, f len]
 
 Track events have two components: a variable-length delta-time and
-a message. The delta-time is the number of ticks between the last 
+a message. The delta-time is the number of ticks between the last
 message and the next one. The format will be: time message time message ...
 
-However, delta-times are tricky things. The fact that they can be 
+However, delta-times are tricky things. The fact that they can be
 any length requires that they be encoded in a special way. The binary
-value of the number is split into 7-bit sections. This splitting 
+value of the number is split into 7-bit sections. This splitting
 goes from RIGHT TO LEFT (this is not in any documentation I have read,
-but was the only way that worked). For n sections, the first start 
-with a 1 and the last starts with a 0 - thereby indicating the last 
+but was the only way that worked). For n sections, the first start
+with a 1 and the last starts with a 0 - thereby indicating the last
 byte of the number. The following is an example of the conversion:
 
-192 track ticks = C0 (hex) = 1100 0000 (bin) 
+192 track ticks = C0 (hex) = 1100 0000 (bin)
 ==> converts to 8140 (hex)
 
 Split into 7-bit groups:        [1]  [100 0000]
@@ -140,15 +140,15 @@ Apply padding:           [000 0001]  [100 0000]
 Add flags:              [1000 0001] [0100 0000]
 Result as hex               8    1      4    0
 
-> makeTrackBody :: Track Ticks -> Byte.ByteString 
+> makeTrackBody :: Track Ticks -> Byte.ByteString
 > makeTrackBody [] = endOfTrack -- end marker, very important!
-> makeTrackBody ((ticks, msg):rest) = 
+> makeTrackBody ((ticks, msg):rest) =
 >     let b = msgToBytes msg
 >         b' = [to7Bits ticks, msgToBytes msg, makeTrackBody rest]
->     in  if Byte.length b > 0 then Byte.concat b'             
+>     in  if Byte.length b > 0 then Byte.concat b'
 >         else makeTrackBody rest
 
-The end of track marker is set 96 ticks after the last event in the 
+The end of track marker is set 96 ticks after the last event in the
 track. This offset is arbitrary, but it helps avoid clipping the notes
 at the end of a file during playback in a program like Winamp or
 Quicktime.
@@ -164,7 +164,7 @@ by the following process:
 
 > to7Bits :: (Integral a, Show a) => a -> Byte.ByteString
 > to7Bits =  Byte.pack . map (fromIntegral . binStrToNum . reverse) .
->            fixBinStrs . map (padTo 7 . reverse). reverse . 
+>            fixBinStrs . map (padTo 7 . reverse). reverse .
 >            breakBinStrs 7 . reverse . padTo 7 . numToBinStr
 
 Pad a binary string to be a multiple of i bits:
@@ -193,9 +193,9 @@ Convert a binary string to an integer:
 Append flags to a string (note, the string must be BACKWARDS):
 
 > fixBinStrs :: [String] -> [String]
-> fixBinStrs xs = 
+> fixBinStrs xs =
 >     let n = length xs
->         bits = take (n-1) (repeat '1') ++ "0"
+>         bits = replicate (n - 1) '1' ++ "0"
 >     in  Prelude.zipWith (:) bits xs
 
 Pad a list from the left until it is a fixed length:
@@ -211,7 +211,7 @@ Ax nn vv	Key aftertouch for pitch nn at velocity vv, channel x
 Bx cc vv	Control Change for controller cc with value vv, channel x
 Cx pp		Program Change to patch pp for channel x
 Dx cc 		Channel after-touch to cc on channel x
-Ex bb tt 	Pitch wheel to value ttbb, channel x (2000 hex is "normal") 
+Ex bb tt 	Pitch wheel to value ttbb, channel x (2000 hex is "normal")
             (note: bb are least significant bits, tt are most significant)
 
 Currently, only note on/off, control change, and program change are supported.
@@ -239,22 +239,22 @@ FF 59 02 sfmi		Key signature with sf sharps/flats and mi mode in {0,1}
 Of these, only the end of track and tempo marker are implemented.
 
 > msgToBytes :: Message -> Byte.ByteString
-> msgToBytes (NoteOn c k v) = 
+> msgToBytes (NoteOn c k v) =
 >     Byte.concat [Byte.pack [0x90 + fromIntegral c], padByte 1 k, padByte 1 v]
-> msgToBytes (NoteOff c k v) = 
+> msgToBytes (NoteOff c k v) =
 >     Byte.concat [Byte.pack [0x80 + fromIntegral c], padByte 1 k, padByte 1 v]
-> msgToBytes (ProgramChange c p) =  
+> msgToBytes (ProgramChange c p) =
 >     Byte.concat [Byte.pack [0xC0 + fromIntegral c], padByte 1 p]
-> msgToBytes (ControlChange c n v) =  
+> msgToBytes (ControlChange c n v) =
 >     Byte.concat [Byte.pack [0xB0 + fromIntegral c], padByte 1 n, padByte 1 v]
 > msgToBytes (TempoChange t) = -- META EVENT, HAS NO CHANNEL NUMBER
 >     Byte.concat [Byte.pack [0xFF, 0x51, 0x03], fixTempo t]
-> msgToBytes x = error ("(msgToBytes) Message type not currently "++ 
+> msgToBytes x = error ("(msgToBytes) Message type not currently "++
 >                "supported: "++show x)
 
 Fix a tempo value to be exactly 3 bytes:
 
-> fixTempo = Byte.pack . map (fromIntegral . binStrToNum . reverse) . 
+> fixTempo = Byte.pack . map (fromIntegral . binStrToNum . reverse) .
 >            breakBinStrs 8 . pad (4*6) '0' . numToBinStr
 
 > exportMidiFile :: FilePath -> Midi -> IO ()
@@ -275,7 +275,6 @@ The exportMidiFile can now be used as follows in place of Codec.Midi's exportFil
 
  test :: (ToMusic1 a) => Music a -> IO ()
  test = exportMidiFile "test.mid" . testMidi
- 
+
  testA :: ToMusic1 a => PMap Note1 -> Context Note1 -> Music a -> IO ()
  testA pm con m = exportMidiFile "test.mid" (testMidiA pm con m)
- 

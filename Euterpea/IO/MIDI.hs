@@ -1,5 +1,5 @@
-module Euterpea.IO.MIDI 
-  ( 
+module Euterpea.IO.MIDI
+  (
     fromMidi            -- :: Midi -> (Music1, Context (Pitch, [NoteAttribute]), UserPatchMap)
   , module Euterpea.IO.MIDI.GeneralMidi
 --  , fromGM              -- :: Int -> InstrumentName

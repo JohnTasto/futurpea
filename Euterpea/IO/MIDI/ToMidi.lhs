@@ -10,6 +10,7 @@
 > import Sound.PortMidi
 > import Data.List(partition)
 > import Data.Char(toLower,toUpper)
+> import Data.Maybe (fromMaybe)
 > import Codec.Midi
 
 > type ProgNum     = Int
@@ -17,22 +18,21 @@
 > type UserPatchMap = [(InstrumentName, Channel)]
 
 > makeGMMap :: [InstrumentName] -> UserPatchMap
-> makeGMMap ins = mkGMMap 0 ins
+> makeGMMap = mkGMMap 0
 >   where mkGMMap _ []        = []
->         mkGMMap n _ | n>=15 = 
+>         mkGMMap n _ | n>=15 =
 >                   error "makeGMMap: too many instruments."
->         mkGMMap n (Percussion : ins)    = 
+>         mkGMMap n (Percussion : ins)    =
 >                   (Percussion, 9) : mkGMMap n ins
->         mkGMMap n (i : ins) = 
+>         mkGMMap n (i : ins) =
 >                   (i, chanList !! n) : mkGMMap (n+1) ins
 >         chanList = [0..8] ++ [10..15]  --  channel 9 is for percussion
 
-> upmLookup :: UserPatchMap  -> InstrumentName 
+> upmLookup :: UserPatchMap  -> InstrumentName
 >                            -> (Channel, ProgNum)
 > upmLookup upm iName = (chan, toGM iName)
->   where chan = maybe  (error (  "instrument " ++ show iName ++ 
->                                 " not in patch map")  )
->                       id (lookup iName upm)
+>   where chan = fromMaybe (error $  "instrument " ++ show iName ++ " not in patch map")
+>                          (lookup iName upm)
 
 > toMidi :: [MEvent] -> Midi
 > toMidi = toMidiUPM defUpm
@@ -43,7 +43,7 @@
 >        insts     = map fst split
 >        rightMap  =  if (allValid upm insts) then upm
 >                     else (makeGMMap insts)
->    in Midi  (if length split == 1  then SingleTrack 
+>    in Midi  (if length split == 1  then SingleTrack
 >                                    else MultiTrack)
 >             (TicksPerBeat division)
 >             (map (fromAbsTime . mevsToMessages rightMap) split)
@@ -51,10 +51,10 @@
 > division = 96 :: Int
 
 > allValid :: UserPatchMap -> [InstrumentName] -> Bool
-> allValid upm = and . map (lookupB upm)
+> allValid = all . lookupB
 
 > lookupB :: UserPatchMap -> InstrumentName -> Bool
-> lookupB upm x = or (map ((== x) . fst) upm)
+> lookupB upm x = any ((== x) . fst) upm
 
 > splitByInst :: [MEvent] ->  [(InstrumentName, [MEvent])]
 > splitByInst [] = []
@@ -67,7 +67,7 @@
 > defST = 500000
 
 > mevsToMessages ::  UserPatchMap
->                   -> (InstrumentName, [MEvent]) 
+>                   -> (InstrumentName, [MEvent])
 >                   -> [MidiEvent]
 > mevsToMessages upm (inm, pf) =
 >   let  (chan,progNum)   = upmLookup upm inm
@@ -78,10 +78,10 @@
 >                        in mev1 : insertMEvent mev2 (loop es)
 >   in setupInst : setTempo : loop pf
 
-  
+
 > mkMEvents :: Channel -> MEvent -> (MidiEvent,MidiEvent)
-> mkMEvents  mChan (MEvent {  eTime = t, ePitch = p, 
->                            eDur = d, eVol = v})
+> mkMEvents  mChan MEvent {  eTime = t, ePitch = p,
+>                            eDur = d, eVol = v}
 >                   = (  (toDelta t, NoteOn  mChan p v'),
 >                        (toDelta (t+d), NoteOff mChan p v') )
 >            where v' = max 0 (min 127 (fromIntegral v))
@@ -90,7 +90,7 @@
 
 > insertMEvent :: MidiEvent -> [MidiEvent] -> [MidiEvent]
 > insertMEvent mev1  []         = [mev1]
-> insertMEvent mev1@(t1,_) mevs@(mev2@(t2,_):mevs') = 
+> insertMEvent mev1@(t1,_) mevs@(mev2@(t2,_):mevs') =
 >       if t1 <= t2 then mev1 : mevs
 >                   else mev2 : insertMEvent mev1 mevs'
 
@@ -117,7 +117,7 @@
  playM :: Midi -> IO ()
  playM midi = do
    initialize
-   (defaultOutput playMidi) midi 
+   (defaultOutput playMidi) midi
    terminate
    return ()
 

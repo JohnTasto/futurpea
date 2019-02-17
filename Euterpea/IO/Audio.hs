@@ -14,11 +14,11 @@ import Euterpea.IO.Audio.Types
 import Euterpea.IO.Audio.IO
 import Euterpea.IO.Audio.Render
 
-writeWav fname iMap m = 
+writeWav fname iMap m =
     let (d,s) = renderSF m iMap
     in  outFile fname d s
 
-writeWavNorm fname iMap m = 
+writeWavNorm fname iMap m =
     let (d,s) = renderSF m iMap
     in  outFileNorm fname d s
 

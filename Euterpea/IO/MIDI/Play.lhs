@@ -118,7 +118,7 @@ consuming to compute. Infinite parallelism is not supported.
 >     handleCtrlC :: IO a -> IO a
 >     handleCtrlC op = do
 >         dev <- resolveOutDev (devID p)
->         onException op (stopMidiOut (dev) 16)
+>         onException op (stopMidiOut dev 16)
 
 Bug fix on Sept 24, 2018: on Mac, the default output device may not be zero.
 In rare cases on Mac, there are outputs but the default ID is Nothing, but

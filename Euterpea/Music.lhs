@@ -149,35 +149,35 @@ the MEvent framework.
 > instance ToMusic1 (Pitch, Volume) where
 >     toMusic1  = mMap (\(p, v) -> (p, [Volume v]))
 
-> instance ToMusic1 (Note1) where
+> instance ToMusic1 Note1 where
 >     toMusic1 = id
 
-> instance ToMusic1 (AbsPitch) where
+> instance ToMusic1 AbsPitch where
 >     toMusic1 = mMap (\a -> (pitch a, []))
 
 > instance ToMusic1 (AbsPitch, Volume) where
 >     toMusic1 = mMap (\(p,v) -> (pitch p, [Volume v]))
 
 > note            :: Dur -> a -> Music a
-> note d p        = Prim (Note d p)
+> note d p        = Prim $ Note d p
 
 > rest            :: Dur -> Music a
-> rest d          = Prim (Rest d)
+> rest            = Prim . Rest
 
 > tempo           :: Dur -> Music a -> Music a
-> tempo r m       = Modify (Tempo r) m
+> tempo           = Modify . Tempo
 
 > transpose       :: AbsPitch -> Music a -> Music a
-> transpose i m   = Modify (Transpose i) m
+> transpose       = Modify . Transpose
 
 > instrument      :: InstrumentName -> Music a -> Music a
-> instrument i m  = Modify (Instrument i) m
+> instrument      = Modify . Instrument
 
 > phrase          :: [PhraseAttribute] -> Music a -> Music a
-> phrase pa m     = Modify (Phrase pa) m
+> phrase          = Modify . Phrase
 
 > keysig          :: PitchClass -> Mode -> Music a -> Music a
-> keysig pc mo m  = Modify (KeySig pc mo) m
+> keysig pc mo    = Modify $ KeySig pc mo
 
 > cff,cf,c,cs,css,dff,df,d,ds,dss,eff,ef,e,es,ess,fff,ff,f,
 >   fs,fss,gff,gf,g,gs,gss,aff,af,a,as,ass,bff,bf,b,bs,bss ::
