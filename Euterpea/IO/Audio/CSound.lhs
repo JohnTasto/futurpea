@@ -23,7 +23,7 @@ which used many csound names for the basic signal functions.
 > exponential1 = tableExponN
 > lineSeg1     = tableLinearN
 
-> tone     = filterLowPass 
+> tone     = filterLowPass
 > --             :: forall p . Clock p => Signal p (Double, Double) Double
 > atone    = filterHighPass
 > --             :: forall p . Clock p => Signal p (Double, Double) Double
@@ -44,7 +44,7 @@ which used many csound names for the basic signal functions.
 > oscils f = proc a -> do
 >              o <- oscFixed f -< ()
 >              outA -< o*a
-> oscil1 tab del dur = 
+> oscil1 tab del dur =
 >            proc a -> do
 >              o <- oscDur  tab del dur -< ()
 >              outA -< o*a
@@ -71,7 +71,7 @@ which used many csound names for the basic signal functions.
 > linseg   = envLineSeg
 > expseg   = envExponSeg
 
-> linen rise dur dec = 
+> linen rise dur dec =
 >   proc s -> do
 >     o <- envASR rise dur dec -< ()
 >     outA -< o*s
@@ -81,12 +81,12 @@ which used many csound names for the basic signal functions.
 >     o <- envCSEnvlpx rise dur dec tab atss atdec -< ()
 >     outA -< o*s
 
-> rand s = 
+> rand s =
 >   proc a -> do
 >     o <- noiseWhite s -< ()
 >     outA -< o*a
 
-> randi s = 
+> randi s =
 >   proc (a,f) -> do
 >     o <- noiseBLI s -< f
 >     outA -< o*a

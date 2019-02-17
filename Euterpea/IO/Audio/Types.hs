@@ -31,7 +31,7 @@ class AudioSample a where
     zero :: a
     mix :: a -> a -> a
     collapse :: a -> [Double]
-    numChans :: a -> Int   
+    numChans :: a -> Int
       -- allows us to reify the number of channels from the type.
 
 instance AudioSample Double where
