@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 46d57762e718e3860ff1bc83092f190a72155093e978a9f06733e07edc560940
+-- hash: a703ef093a749a4deecc4f9afaceeddb2bec9c2af0e9cbb128305e75e9eb74a2
 
 name:           Euterpea
 version:        2.0.6
@@ -62,6 +62,7 @@ library
       Paths_Euterpea
   hs-source-dirs:
       ./.
+  default-extensions: LambdaCase InstanceSigs
   ghc-options: -O2 -funbox-strict-fields -fexcess-precision
   build-depends:
       HCodecs

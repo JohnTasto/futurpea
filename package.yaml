@@ -40,6 +40,10 @@ ghc-options:
 extra-source-files:
   - ReadMe.txt
 
+default-extensions:
+  - LambdaCase
+  - InstanceSigs
+
 dependencies:
   - base
   - arrows
