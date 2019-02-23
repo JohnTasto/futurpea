@@ -56,7 +56,6 @@ data SimpleMsg =
   deriving (Eq, Show)
 
 instance Ord SimpleMsg where
-  compare :: SimpleMsg -> SimpleMsg -> Ordering
   compare (SE (t, _, _, _, _)) (SE (t', _, _, _, _)) = compare t t'
   compare (T  (t, _))          (SE (t', _, _, _, _)) = compare t t'
   compare (SE (t, _, _, _, _)) (T  (t', _))          = compare t t'
@@ -187,72 +186,71 @@ seToMusic tCurr (e1@(T (t,newTempo)):es) =
 seToMusic tCurr (_:es) = seToMusic tCurr es -- ignore note-offs (already handled)
 
 -- |Finding the time of an event.
-getTime (SE(t,p,v,i,e)) = t
-getTime (T (t,x)) = t
+getTime :: SimpleMsg -> Rational
+getTime (SE (t, _, _, _, _)) = t
+getTime (T  (t, _))          = t
 
 -- |Finding the instrument associated with a track. Only the first
 -- instrument label to appear is chosen. If a program change happens
 -- mid-track, it will not be counted.
-getInstrument ((SE(t,p,v,i,e)):xs) = i
-getInstrument ((T x) : xs) = getInstrument xs
-getInstrument [] = -1 -- No instrument assigned
-
+getInstrument :: [SimpleMsg] -> Int
+getInstrument (SE (_, _, _,i, _) : xs) = i
+getInstrument (T x : xs)               = getInstrument xs
+getInstrument []                       = -1 -- No instrument assigned
 
 -- The following function ensure that only one instrument appears in
 -- each list of SimpleMsgs. This is necessary in order to ensure that
 -- instrument assignments occur at the outermost level of the Music.
 splitByInstruments :: [[SimpleMsg]] -> [[SimpleMsg]]
 splitByInstruments [] = []
-splitByInstruments (t:ts) =
-  let i = getInstrument t
-      (t',t'') = splitByI i t
-      ts' = if any isSE t'' then splitByInstruments (t'':ts)
+splitByInstruments (t:ts) = if any isSE t' then t' : ts' else ts'
+  where
+    i = getInstrument t
+    (t',t'') = splitByI i t
+    ts' = if any isSE t''
+            then splitByInstruments (t'':ts)
             else splitByInstruments ts
-  in  if any isSE t' then t' : ts' else ts'
 
 isSE :: SimpleMsg -> Bool
 isSE (SE xs) = True
-isSE (T i) = False
+isSE (T  i)  = False
 
 -- |The 'splitByI' function partitions a stream to select a specific instrument's events.
 splitByI :: Int -> [SimpleMsg] -> ([SimpleMsg],[SimpleMsg])
-splitByI i0 [] = ([],[])
-splitByI i0 (x:xs) =
-  let (ts,fs) = splitByI i0 xs
-      f (SE(_,_,_,i1,_)) = i0 == i1
-      f _ = False
-  in  case x of
-    SE x' -> if f x then (x:ts,fs) else (ts,x:fs)
+splitByI i0 = \case
+  [] -> ([],[])
+  (x:xs) -> case x of
+    SE x' -> if f x then (x:ts, fs) else (ts, x:fs)
     T i   -> (x:ts, x:fs) -- add tempos to both streams
-
+    where
+      (ts,fs) = splitByI i0 xs
+      f (SE (_, _, _, i1, _)) = i0 == i1
+      f _                     = False
 
 -- |This function is an error-handling method for MIDI files which have
 -- mismatched note on/off events. This seems to be common in output from
 -- some software. The solution used here is to assume that the note lasts
 -- until the the time of the last event in the list.
+correctOff :: SimpleMsg -> [SimpleMsg] -> SimpleMsg
 correctOff (SE(t,p,v,ins,e)) [] = SE(t,p,v,ins,Off)
 correctOff (SE(t,p,v,ins,e)) es =
   let SE(t1,p1,v1,ins1,e1) = last $ filter isSE es
   in  SE(t1,p,v,ins,Off)
 
-
 -- |The 'fromMidi' function wraps the combination of midiToEvents and
 -- eventsToMusic and performs the final conversion to Music1.
 fromMidi :: Midi -> Music1
-fromMidi m =
-  let seList = midiToEvents m
-      iNums = filter (>0) $ map getInstrument seList
-      upm = makeUPM $ map toEnum iNums
-  in  mMap (\(p,v) -> (p, [Volume v])) $ eventsToMusic seList
-
+fromMidi m = mMap (\(p,v) -> (p, [Volume v])) $ eventsToMusic seList
+  where
+    seList = midiToEvents m
+    iNums = filter (>0) $ getInstrument <$> seList
+    upm = makeUPM $ toEnum <$> iNums
 
 -- |This function is to correct for the fact that channel 10 is
 -- traditionally reserved for percussion. If there is no percussion,
 -- then channel 10 must remain empty. Channels are indexed from zero
 -- in this representation, so channel 1 is 0, channel 10 is 9, etc.
 makeUPM :: [InstrumentName] -> UserPatchMap
-makeUPM is =
-  case elemIndex Percussion is of
-      Nothing -> zip is ([0..8]++[10..]) -- no percussion
-      Just i -> (is !! i, 9) :
-                zip (take i is ++ drop (i+1) is) ([0..8]++[10..])
+makeUPM is = case elemIndex Percussion is of
+  Nothing -> zip is ([0..8]++[10..]) -- no percussion
+  Just i  -> (is !! i, 9) : zip (take i is ++ drop (i+1) is) ([0..8]++[10..])
