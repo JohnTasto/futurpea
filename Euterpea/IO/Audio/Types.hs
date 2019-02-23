@@ -1,4 +1,5 @@
-{-# LANGUAGE EmptyDataDecls, FlexibleInstances #-}
+{-# LANGUAGE EmptyDataDecls    #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Euterpea.IO.Audio.Types where
 

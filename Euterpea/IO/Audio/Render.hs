@@ -1,4 +1,7 @@
-{-# LANGUAGE Arrows, ScopedTypeVariables, NamedFieldPuns, FlexibleContexts #-}
+{-# LANGUAGE Arrows              #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- Render a Music object to a audio signal function that can be further
 -- manipulated or saved to a file.  It is channel-agnostic in that it is
@@ -9,17 +12,17 @@ module Euterpea.IO.Audio.Render (
 ) where
 
 import Control.Arrow
-import Control.Arrow.Operations
 import Control.Arrow.ArrowP
+import Control.Arrow.Operations
 import Control.SF.SF
 
-import Euterpea.Music
-import Euterpea.IO.MIDI.MEvent
 import Euterpea.IO.Audio.Basics
 import Euterpea.IO.Audio.Types
+import Euterpea.IO.MIDI.MEvent
+import Euterpea.Music
 
-import Data.List
 import qualified Data.IntMap as M
+import Data.List
 import Data.Ord (comparing)
 
 -- Every instrument is a function that takes a duration, absolute
@@ -80,8 +83,8 @@ toEvtSF pf imap =
 
 modSF :: M.IntMap a -> [Evt a] -> M.IntMap a
 modSF = foldl' mod
-    where mod m (_, NoteOn nid sf)  = M.insert nid sf m
-          mod m (_, NoteOff nid)    = M.delete nid m
+    where mod m (_, NoteOn nid sf) = M.insert nid sf m
+          mod m (_, NoteOff nid)   = M.delete nid m
 
 
 -- Simplified version of a parallel switcher.

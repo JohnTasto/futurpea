@@ -1,4 +1,7 @@
-{-# LANGUAGE Arrows, ExistentialQuantification, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE Arrows                    #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Euterpea.IO.Audio.Basics (
   outA,
@@ -8,11 +11,11 @@ module Euterpea.IO.Audio.Basics (
   pchToHz, apToHz
 ) where
 
-import Euterpea.Music
-import Euterpea.IO.Audio.Types
 import Control.Arrow
-import Control.Arrow.Operations
 import Control.Arrow.ArrowP
+import Control.Arrow.Operations
+import Euterpea.IO.Audio.Types
+import Euterpea.Music
 
 
 outA :: (Arrow a) => a b b

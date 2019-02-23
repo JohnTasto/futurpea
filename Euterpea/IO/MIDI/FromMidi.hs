@@ -1,10 +1,10 @@
 module Euterpea.IO.MIDI.FromMidi (fromMidi) where
 
-import Euterpea.Music
-import Euterpea.IO.MIDI.ToMidi
-import Euterpea.IO.MIDI.GeneralMidi
-import Data.List
 import Codec.Midi
+import Data.List
+import Euterpea.IO.MIDI.GeneralMidi
+import Euterpea.IO.MIDI.ToMidi
+import Euterpea.Music
 
 -- Donya Quick
 -- Last updated 15-Oct-2013.
@@ -70,18 +70,18 @@ instance Ord SimpleMsg where
 -- can later be filtered out without affecting the timing of support events.
 
 addTrackTicks :: Int -> [(Ticks, a)] -> [(Ticks, a)]
-addTrackTicks sum [] = []
+addTrackTicks sum []         = []
 addTrackTicks sum ((t,x):ts) = (t+sum,x) : addTrackTicks (t+sum) ts
 
 -- |The following function addresses a ticks to Music duration conversion.
 applyTD :: TimeDiv -> SimpleMsg -> SimpleMsg
 applyTD tdw x =
   case x of
-    T(t,i) -> T(fixT tdw t, i)
+    T(t,i)        -> T(fixT tdw t, i)
     SE(t,p,v,i,e) -> SE(fixT tdw t, p, v, i, e)
   where
     fixT tdw t = case tdw of
-      TicksPerBeat td -> t / (fromIntegral td * 4)
+      TicksPerBeat td        -> t / (fromIntegral td * 4)
       TicksPerSecond fps tpf -> t / fromIntegral (fps * tpf)
 
 -- |The 'midiToEvents' function will take a Midi structure (from importFile,
@@ -182,7 +182,7 @@ seToMusic tCurr (e1@(T (t,newTempo)):es) =
         else m
           where
             changeTime f (SE (t,p,v,i,e)) = SE (f t,p,v,i,e)
-            changeTime f (T (t,x)) = T (f t, x)
+            changeTime f (T (t,x))        = T (f t, x)
 seToMusic tCurr (_:es) = seToMusic tCurr es -- ignore note-offs (already handled)
 
 -- |Finding the time of an event.

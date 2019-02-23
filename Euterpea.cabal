@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a703ef093a749a4deecc4f9afaceeddb2bec9c2af0e9cbb128305e75e9eb74a2
+-- hash: bb827048580a5d3df9304b811d84f4a82f5e21baaa699e1dbf275dc8977107cb
 
 name:           Euterpea
 version:        2.0.6
@@ -62,7 +62,7 @@ library
       Paths_Euterpea
   hs-source-dirs:
       ./.
-  default-extensions: LambdaCase InstanceSigs
+  default-extensions: Arrows ConstraintKinds DataKinds DefaultSignatures DeriveDataTypeable DeriveGeneric EmptyDataDecls ExistentialQuantification ExplicitNamespaces FlexibleContexts FlexibleInstances FunctionalDependencies GADTs GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoMonomorphismRestriction OverloadedStrings PackageImports PatternSynonyms PolyKinds QuasiQuotes RankNTypes RecordWildCards ScopedTypeVariables StandaloneDeriving TemplateHaskell TupleSections TypeApplications TypeFamilies TypeOperators ViewPatterns
   ghc-options: -O2 -funbox-strict-fields -fexcess-precision
   build-depends:
       HCodecs

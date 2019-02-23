@@ -455,12 +455,12 @@ instance Functor Music where
 mFold ::  (Primitive a -> b) -> (b->b->b) -> (b->b->b) ->
           (Control -> b -> b) -> Music a -> b
 mFold f (+:) (=:) g m =
-  let rec = mFold f (+:) (=:) g
+  let recr = mFold f (+:) (=:) g
   in case m of
       Prim p      -> f p
-      m1 :+: m2   -> rec m1 +: rec m2
-      m1 :=: m2   -> rec m1 =: rec m2
-      Modify c m  -> g c (rec m)
+      m1 :+: m2   -> recr m1 +: recr m2
+      m1 :=: m2   -> recr m1 =: recr m2
+      Modify c m  -> g c (recr m)
 
 -- -- =========================================================================================
 -- |Sometimes we may wish to alter the internal structure of a Music value

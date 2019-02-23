@@ -8,11 +8,11 @@ module Euterpea.IO.Audio
     writeWavNorm
   ) where
 
-import Euterpea.IO.Audio.BasicSigFuns
 import Euterpea.IO.Audio.Basics
-import Euterpea.IO.Audio.Types
+import Euterpea.IO.Audio.BasicSigFuns
 import Euterpea.IO.Audio.IO
 import Euterpea.IO.Audio.Render
+import Euterpea.IO.Audio.Types
 
 writeWav fname iMap m =
     let (d,s) = renderSF m iMap

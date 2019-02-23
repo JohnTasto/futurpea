@@ -1,4 +1,6 @@
-{-# LANGUAGE ExistentialQuantification, ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Euterpea.IO.Audio.IO (
     outFile,  outFileNorm,
@@ -10,8 +12,8 @@ import Control.SF.SF
 import Euterpea.IO.Audio.Types hiding (Signal)
 
 import Codec.Wav
-import Data.Audio
 import Data.Array.Unboxed
+import Data.Audio
 import Data.Int
 
 --import Data.IORef

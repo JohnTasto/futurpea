@@ -18,10 +18,10 @@ module Euterpea.IO.MIDI
   , module Euterpea.IO.MIDI.MEvent
   ) where
 
+import Euterpea.IO.MIDI.ExportMidiFile
 import Euterpea.IO.MIDI.FromMidi
 import Euterpea.IO.MIDI.GeneralMidi
-import Euterpea.IO.MIDI.MidiIO
-import Euterpea.IO.MIDI.ToMidi
-import Euterpea.IO.MIDI.ExportMidiFile
-import Euterpea.IO.MIDI.Play
 import Euterpea.IO.MIDI.MEvent
+import Euterpea.IO.MIDI.MidiIO
+import Euterpea.IO.MIDI.Play
+import Euterpea.IO.MIDI.ToMidi
