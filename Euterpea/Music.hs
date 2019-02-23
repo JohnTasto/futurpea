@@ -1,10 +1,12 @@
-{-#  LANGUAGE FlexibleInstances, TypeSynonymInstances, TupleSections  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Euterpea.Music where
 
-import Prelude
 import Control.Lens (both, over)
 import Data.Bifunctor (bimap)
+import Prelude
 
 type AbsPitch = Int
 type Octave = Int
@@ -281,8 +283,8 @@ offset :: Dur -> Music a -> Music a
 offset d m  = rest d :+: m
 
 times :: Int -> Music a -> Music a
-times 0 m  = rest 0
-times n m  = m :+: times (n-1) m
+times 0 m = rest 0
+times n m = m :+: times (n-1) m
 
 forever    :: Music a -> Music a
 forever m  = m :+: forever m
@@ -305,7 +307,7 @@ invert m =
   in  if null pRef then m -- no pitches in the structure!
       else invertAt (head pRef) m
   where pFun (Note d p) = [p]
-        pFun _ = []
+        pFun _          = []
 
 invert1 :: Music (Pitch,a) -> Music (Pitch,a)
 invert1 m =
@@ -313,7 +315,7 @@ invert1 m =
   in  if null pRef then m -- no pitches!
       else invertAt1 (head pRef) m
   where pFun (Note d (p,x)) = [p]
-        pFun _ = []
+        pFun _              = []
 
 retro :: Music a -> Music a
 retro n@(Prim _)    = n
@@ -331,12 +333,12 @@ retroInvert  = retro  . invert
 invertRetro  = invert . retro
 
 dur :: Music a -> Dur
-dur (Prim (Note d _))     = d
-dur (Prim (Rest d))       = d
-dur (m1 :+: m2)           = dur m1   +   dur m2
-dur (m1 :=: m2)           = dur m1 `max` dur m2
-dur (Modify (Tempo r) m)  = dur m / r
-dur (Modify _ m)          = dur m
+dur (Prim (Note d _))    = d
+dur (Prim (Rest d))      = d
+dur (m1 :+: m2)          = dur m1   +   dur m2
+dur (m1 :=: m2)          = dur m1 `max` dur m2
+dur (Modify (Tempo r) m) = dur m / r
+dur (Modify _ m)         = dur m
 
 cut :: Dur -> Music a -> Music a
 cut d m | d <= 0            = rest 0
@@ -437,14 +439,14 @@ perc :: PercussionSound -> Dur -> Music Pitch
 perc ps dur = instrument Percussion . note dur . pitch $ fromEnum ps + 35
 
 pMap :: (a -> b) -> Primitive a -> Primitive b
-pMap f (Note d x)  = Note d (f x)
-pMap f (Rest d)    = Rest d
+pMap f (Note d x) = Note d (f x)
+pMap f (Rest d)   = Rest d
 
 mMap :: (a -> b) -> Music a -> Music b
-mMap f (Prim p)      = Prim (pMap f p)
-mMap f (m1 :+: m2)   = mMap f m1 :+: mMap f m2
-mMap f (m1 :=: m2)   = mMap f m1 :=: mMap f m2
-mMap f (Modify c m)  = Modify c (mMap f m)
+mMap f (Prim p)     = Prim (pMap f p)
+mMap f (m1 :+: m2)  = mMap f m1 :+: mMap f m2
+mMap f (m1 :=: m2)  = mMap f m1 :=: mMap f m2
+mMap f (Modify c m) = Modify c (mMap f m)
 
 instance Functor Primitive where
   fmap = pMap
@@ -457,10 +459,10 @@ mFold ::  (Primitive a -> b) -> (b->b->b) -> (b->b->b) ->
 mFold f (+:) (=:) g m =
   let recr = mFold f (+:) (=:) g
   in case m of
-      Prim p      -> f p
-      m1 :+: m2   -> recr m1 +: recr m2
-      m1 :=: m2   -> recr m1 =: recr m2
-      Modify c m  -> g c (recr m)
+      Prim p     -> f p
+      m1 :+: m2  -> recr m1 +: recr m2
+      m1 :=: m2  -> recr m1 =: recr m2
+      Modify c m -> g c (recr m)
 
 -- -- =========================================================================================
 -- |Sometimes we may wish to alter the internal structure of a Music value
@@ -474,17 +476,17 @@ shiftPitches1 k = mMap (\(p,xs) -> (trans k p, xs))
 
 scaleDurations :: Rational -> Music a -> Music a
 scaleDurations r (Prim (Note d p)) = note (d/r) p
-scaleDurations r (Prim (Rest d)) = rest (d/r)
-scaleDurations r (m1 :+: m2) = scaleDurations r m1 :+: scaleDurations r m2
-scaleDurations r (m1 :=: m2) = scaleDurations r m1 :=: scaleDurations r m2
-scaleDurations r (Modify c m) = Modify c (scaleDurations r m)
+scaleDurations r (Prim (Rest d))   = rest (d/r)
+scaleDurations r (m1 :+: m2)       = scaleDurations r m1 :+: scaleDurations r m2
+scaleDurations r (m1 :=: m2)       = scaleDurations r m1 :=: scaleDurations r m2
+scaleDurations r (Modify c m)      = Modify c (scaleDurations r m)
 
 changeInstrument :: InstrumentName -> Music a -> Music a
 changeInstrument i m = Modify (Instrument i) $ removeInstruments m
 
 removeInstruments :: Music a -> Music a
 removeInstruments (Modify (Instrument i) m) = removeInstruments m
-removeInstruments (Modify c m) = Modify c $ removeInstruments m
-removeInstruments (m1 :+: m2) = removeInstruments m1 :+: removeInstruments m2
-removeInstruments (m1 :=: m2) = removeInstruments m1 :=: removeInstruments m2
-removeInstruments m = m
+removeInstruments (Modify c m)              = Modify c $ removeInstruments m
+removeInstruments (m1 :+: m2)               = removeInstruments m1 :+: removeInstruments m2
+removeInstruments (m1 :=: m2)               = removeInstruments m1 :=: removeInstruments m2
+removeInstruments m                         = m

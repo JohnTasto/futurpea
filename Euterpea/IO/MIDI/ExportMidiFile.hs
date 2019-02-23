@@ -24,9 +24,9 @@ module Euterpea.IO.MIDI.ExportMidiFile
   where
 
 import Codec.Midi
-import Numeric
-import Data.Char
 import qualified Data.ByteString as Byte
+import Data.Char
+import Numeric
 
 -- A standard MIDI file has two main sections: a header and a
 -- series of track chunks. Track chunks each have a track header
@@ -189,10 +189,10 @@ numToBinStr i = showIntAtBase 2 intToDigit i ""
 
 -- Convert a binary string to an integer:
 binStrToNum :: String -> Int
-binStrToNum [] = 0
+binStrToNum []       = 0
 binStrToNum ('0':xs) = 2* binStrToNum xs
 binStrToNum ('1':xs) = 1 + 2*binStrToNum xs
-binStrToNum _ = error "bad data."
+binStrToNum _        = error "bad data."
 
 -- Append flags to a string (note, the string must be BACKWARDS):
 fixBinStrs :: [String] -> [String]
