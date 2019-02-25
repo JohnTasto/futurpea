@@ -3,29 +3,32 @@
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- Render a Music object to a audio signal function that can be further
+-- |Render a Music object to a audio signal function that can be further
 -- manipulated or saved to a file.  It is channel-agnostic in that it is
 -- able to deal with instruments of arbitrary number of channels.
-
 module Euterpea.IO.Audio.Render (
-  Instr, InstrMap, renderSF,
-) where
+    Instr
+  , InstrMap
+  , renderSF
+  ) where
 
-import Control.Arrow
-import Control.Arrow.ArrowP
-import Control.Arrow.Operations
-import Control.SF.SF
-
-import Euterpea.IO.Audio.Basics
-import Euterpea.IO.Audio.Types
-import Euterpea.IO.MIDI.MEvent
-import Euterpea.Music
-
-import qualified Data.IntMap as M
-import Data.List
+import Control.Arrow (arr, (>>>))
+import Control.Arrow.Operations (delay)
+import qualified Data.IntMap as IM
+import Data.List (foldl', sortOn)
+import Data.Maybe (fromMaybe)
 import Data.Ord (comparing)
 
--- Every instrument is a function that takes a duration, absolute
+import Control.Arrow.ArrowP (ArrowP (ArrowP), strip)
+import Control.SF.SF (SF, runSF)
+import Euterpea.IO.Audio.Basics (integral, outA)
+import Euterpea.IO.Audio.Types (AudioSample, Clock, Signal, mix, zero)
+import Euterpea.IO.MIDI.MEvent
+  (MEvent (MEvent), eDur, eInst, eParams, ePitch, eTime, eVol, perform1Dur)
+import Euterpea.Music (AbsPitch, Dur, InstrumentName, Music, ToMusic1, Volume, toMusic1)
+
+
+-- |Every instrument is a function that takes a duration, absolute
 -- pitch, volume, and a list of parameters (Doubles).  What the function
 -- actually returns is implementation independent.
 type Instr a = Dur -> AbsPitch -> Volume -> [Double] -> a
@@ -33,17 +36,15 @@ type Instr a = Dur -> AbsPitch -> Volume -> [Double] -> a
 type InstrMap a = [(InstrumentName, Instr a)]
 
 lookupInstr :: InstrumentName -> InstrMap a -> Instr a
-lookupInstr ins im =
-    case lookup ins im of
-      Just i -> i
-      Nothing -> error $ "Instrument " ++ show ins ++
-                 " does not have a matching Instr in the supplied InstrMap."
+lookupInstr ins im = fromMaybe noInstErr $ lookup ins im
+  where
+    noInstErr = error $ "Instrument " ++ show ins ++ " does not have a matching Instr in the supplied InstrMap."
 
--- Each note in a Performance is tagged with a unique NoteId, which
+-- |Each note in a Performance is tagged with a unique NoteId, which
 -- helps us keep track of the signal function associated with a note.
 type NoteId = Int
 
--- In this particular implementation, 'a' is the signal function that
+-- |In this particular implementation, 'a' is the signal function that
 -- plays the given note.
 data NoteEvt a = NoteOn  NoteId a
                | NoteOff NoteId
@@ -51,7 +52,7 @@ data NoteEvt a = NoteOn  NoteId a
 type Evt a = (Double, NoteEvt a) -- Timestamp in seconds, and the note event
 
 
--- Turn an Event into a NoteOn and a matching NoteOff with the same NodeId.
+-- |Turn an Event into a NoteOn and a matching NoteOff with the same NodeId.
 eventToEvtPair :: InstrMap a -> MEvent -> Int -> [Evt a]
 eventToEvtPair imap MEvent {eTime, eInst, ePitch, eDur, eVol, eParams} nid =
     let instr = lookupInstr eInst imap
@@ -60,7 +61,7 @@ eventToEvtPair imap MEvent {eTime, eInst, ePitch, eDur, eVol, eParams} nid =
         sf    = instr eDur ePitch eVol eParams
     in [(tOn, NoteOn nid sf), (tOn + tDur, NoteOff nid)]
 
--- Turn a Performance into an SF of NoteOn/NoteOffs.
+-- |Turn a Performance into an SF of NoteOn/NoteOffs.
 -- For each note, generate a unique id to tag the NoteOn and NoteOffs.
 -- The tag is used as the key to the collection of signal functions
 -- for efficient insertion/removal.
@@ -78,19 +79,17 @@ toEvtSF pf imap =
              -- retaining the rest
          outA -< evs
 
--- Modify the collection upon receiving NoteEvts.  The timestamps
+-- |Modify the collection upon receiving NoteEvts.  The timestamps
 -- are not used here, but they are expected to be the same.
-
-modSF :: M.IntMap a -> [Evt a] -> M.IntMap a
+modSF :: IM.IntMap a -> [Evt a] -> IM.IntMap a
 modSF = foldl' mod
-    where mod m (_, NoteOn nid sf) = M.insert nid sf m
-          mod m (_, NoteOff nid)   = M.delete nid m
+    where mod m (_, NoteOn nid sf) = IM.insert nid sf m
+          mod m (_, NoteOff nid)   = IM.delete nid m
 
 
--- Simplified version of a parallel switcher.
+-- |Simplified version of a parallel switcher.
 -- Note that this is tied to the particular implementation of SF, as it
 -- needs to use runSF to run all the signal functions in the collection.
-
 pSwitch :: forall p col a. (Clock p, Functor col) =>
            col (Signal p () a)  -- Initial SF collection.
         -> Signal p () [Evt (Signal p () a)]    -- Input event stream.
@@ -111,17 +110,14 @@ pSwitch col esig mod =
             (as, sfcol' :: col (Signal p () a)) = (fmap fst rs, fmap (ArrowP . snd) rs)
       outA -< as
 
-
+-- |Returns tuple with duration of the music in seconds, and a signal function that plays the music.
 renderSF :: (Clock p, ToMusic1 a, AudioSample b) =>
             Music a
          -> InstrMap (Signal p () b)
          -> (Double, Signal p () b)
-            -- ^ Duration of the music in seconds,
-            -- and a signal function that plays the music.
-
-renderSF m im =
-    let (pf, d) = perform1Dur $ toMusic1 m -- Updated 16-Dec-2015
-        evtsf = toEvtSF pf im
-        allsf = pSwitch M.empty evtsf modSF
-        sf = allsf >>> arr (foldl' mix zero . M.elems)  -- add up all samples
-    in (fromRational d, sf)
+renderSF m im = (fromRational d, sf)
+  where
+    (pf, d) = perform1Dur $ toMusic1 m -- Updated 16-Dec-2015
+    evtsf = toEvtSF pf im
+    allsf = pSwitch IM.empty evtsf modSF
+    sf = allsf >>> arr (foldl' mix zero . IM.elems)  -- add up all samples
