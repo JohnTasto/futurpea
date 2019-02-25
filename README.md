@@ -1,3 +1,11 @@
+# DISCLAIMER
+
+I'm not the author of this project, just a fan.
+
+Please see original - https://github.com/Euterpea/Euterpea2
+
+---
+
 ### Version 2.0.5
 Last modified: 26-June-2018
 ### Website: http://www.euterpea.com
