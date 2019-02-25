@@ -1,12 +1,10 @@
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Euterpea.Music where
 
+import Prelude
 import Control.Lens (both, over)
 import Data.Bifunctor (bimap)
-import Prelude
 
 type AbsPitch = Int
 type Octave = Int

@@ -71,19 +71,19 @@ import Euterpea.IO.Audio.Types
 
 import Euterpea.Music (ToMusic1, Music)
 
-writeWav :: (Clock p, ToMusic1 a1, AudioSample a)
+writeWav :: (Clock c, ToMusic1 m1, AudioSample a)
   => String
-  -> InstrMap (Signal p () a)
-  -> Music a1
+  -> InstrMap (Signal c () a)
+  -> Music m1
   -> IO ()
 writeWav fname iMap m =
     let (d,s) = renderSF m iMap
     in  outFile fname d s
 
-writeWavNorm :: (Clock p, ToMusic1 a1, AudioSample a)
+writeWavNorm :: (Clock c, ToMusic1 m1, AudioSample a)
   => String
-  -> InstrMap (Signal p () a)
-  -> Music a1
+  -> InstrMap (Signal c () a)
+  -> Music m1
   -> IO ()
 writeWavNorm fname iMap m =
     let (d,s) = renderSF m iMap
