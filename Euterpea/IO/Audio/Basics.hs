@@ -1,8 +1,3 @@
-{-# LANGUAGE Arrows                    #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-
 module Euterpea.IO.Audio.Basics (
   outA,
   integral,

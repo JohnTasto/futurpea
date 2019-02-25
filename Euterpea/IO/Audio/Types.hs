@@ -1,14 +1,10 @@
-{-# LANGUAGE EmptyDataDecls    #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Euterpea.IO.Audio.Types where
 
-import Control.Arrow.ArrowP
-import Control.SF.SF
-
+import Control.Arrow.ArrowP (ArrowP)
+import Control.SF.SF (SF)
 
 class Clock p where
-    rate :: p -> Double  -- sampling rate
+    rate :: p -> Double  -- ^ sampling rate
 
 data AudRate
 data CtrRate
@@ -25,15 +21,13 @@ type CtrSF a b  = SigFun CtrRate a b
 type Signal clk a b    = ArrowP SF clk a b
 type SigFun clk a b    = ArrowP SF clk a b
 
--- Arbitrary number of channels (say, 5.1) can be supported by just adding more
--- instances of the AudioSample type class.
-
+-- |Arbitrary number of channels (say, 5.1) can be supported by just adding more
+-- instances of the 'AudioSample' type class.
 class AudioSample a where
     zero :: a
     mix :: a -> a -> a
     collapse :: a -> [Double]
-    numChans :: a -> Int
-      -- allows us to reify the number of channels from the type.
+    numChans :: a -> Int -- ^ allows us to reify the number of channels from the type.
 
 instance AudioSample Double where
     zero = 0
@@ -47,6 +41,6 @@ instance AudioSample (Double,Double) where
     collapse (a,b) = [a,b]
     numChans _ = 2
 
--- Some useful type synonyms:
+-- |Some useful type synonyms:
 type Mono p = Signal p () Double
 type Stereo p = Signal p () (Double,Double)

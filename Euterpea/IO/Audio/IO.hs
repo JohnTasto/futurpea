@@ -1,7 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-
 module Euterpea.IO.Audio.IO (
     outFile
   , outFileNorm
