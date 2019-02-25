@@ -2,9 +2,9 @@
 
 module Euterpea.Music where
 
-import Prelude
 import Control.Lens (both, over)
 import Data.Bifunctor (bimap)
+import Prelude
 
 type AbsPitch = Int
 type Octave = Int
@@ -15,7 +15,7 @@ data PitchClass  =
   | Ef | Fff | Dss | E | Ff | Es | F | Gff | Ess | Fs
   | Gf | Fss | G | Aff | Gs | Af | Gss | A | Bff | As
   | Bf | Ass | B | Bs | Bss
-    deriving (Show, Eq, Ord, Read, Enum, Bounded)
+  deriving (Show, Eq, Ord, Read, Enum, Bounded)
 
 data Primitive a =
     Note Dur a

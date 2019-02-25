@@ -69,7 +69,7 @@ import Euterpea.IO.Audio.Types
   , Stereo
   )
 
-import Euterpea.Music (ToMusic1, Music)
+import Euterpea.Music (Music, ToMusic1)
 
 writeWav :: (Clock c, ToMusic1 m1, AudioSample a)
   => String
