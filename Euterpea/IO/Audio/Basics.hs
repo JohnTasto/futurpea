@@ -1,10 +1,12 @@
-module Euterpea.IO.Audio.Basics (
-  outA,
-  integral,
-  countDown, countUp,
-  upsample,
-  pchToHz, apToHz
-) where
+module Euterpea.IO.Audio.Basics
+  ( outA
+  , integral
+  , countDown
+  , countUp
+  , upsample
+  , pchToHz
+  , apToHz
+  ) where
 
 import Control.Arrow (Arrow, ArrowChoice, arr)
 import Control.Arrow.Operations (ArrowCircuit, delay)
