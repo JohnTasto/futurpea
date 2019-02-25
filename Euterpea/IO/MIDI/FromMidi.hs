@@ -1,10 +1,32 @@
 module Euterpea.IO.MIDI.FromMidi (fromMidi) where
 
 import Codec.Midi
-import Data.List
-import Euterpea.IO.MIDI.GeneralMidi
-import Euterpea.IO.MIDI.ToMidi
+  ( Message (NoteOff, NoteOn, ProgramChange, TempoChange)
+  , Midi
+  , Ticks
+  , TimeDiv (TicksPerBeat, TicksPerSecond)
+  , timeDiv
+  , tracks
+  )
+import Data.List (elemIndex, findIndices, sort)
+
+import Euterpea.IO.MIDI.ToMidi (UserPatchMap)
 import Euterpea.Music
+  ( AbsPitch
+  , InstrumentName (Percussion)
+  , Music ((:+:), (:=:))
+  , Music1
+  , NoteAttribute (Volume)
+  , Pitch
+  , Volume
+  , chord
+  , instrument
+  , mMap
+  , note
+  , pitch
+  , rest
+  , tempo
+  )
 
 -- Donya Quick
 -- Last updated 15-Oct-2013.
