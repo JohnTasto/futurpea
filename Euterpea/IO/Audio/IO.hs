@@ -3,18 +3,20 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Euterpea.IO.Audio.IO (
-    outFile,  outFileNorm,
---    outFileA, outFileNormA, RecordStatus,
-    maxSample) where
+    outFile
+  , outFileNorm
+  -- outFileA, outFileNormA, RecordStatus,
+  , maxSample
+  ) where
 
-import Control.Arrow.ArrowP
-import Control.SF.SF
+import Codec.Wav (exportFile)
+import Data.Array.Unboxed (listArray)
+import Data.Audio (Audio (Audio, sampleData), channelNumber, fromSample, sampleRate)
+import Data.Int (Int32)
+
+import Control.Arrow.ArrowP (ArrowP, strip)
+import Control.SF.SF (SF, unfold)
 import Euterpea.IO.Audio.Types hiding (Signal)
-
-import Codec.Wav
-import Data.Array.Unboxed
-import Data.Audio
-import Data.Int
 
 --import Data.IORef
 --import Foreign.C
@@ -30,16 +32,15 @@ import Data.Int
 type Signal clk a b = ArrowP SF clk a b
 
 -- | Writes sound to a wave file (.wav)
-outFile :: forall a p. (AudioSample a, Clock p) =>
-           String              -- ^ Filename to write to.
-        -> Double              -- ^ Duration of the wav in seconds.
-        -> Signal p () a       -- ^ Signal representing the sound.
-        -> IO ()
+outFile :: forall a p. (AudioSample a, Clock p)
+  => String        -- ^ Filename to write to.
+  -> Double        -- ^ Duration of the wav in seconds.
+  -> Signal p () a -- ^ Signal representing the sound.
+  -> IO ()
 outFile = outFileHelp' id
 
 normList :: [Double] -> [Double]
-normList xs = map (/ mx) xs
-    where mx = max 1.0 (maximum (map abs xs))
+normList xs = (\x -> x / max 1.0 (maximum $ abs <$> xs)) <$> xs
 
 -- | Like outFile, but normalizes the output if the amplitude of
 -- the signal goes above 1.  If the maximum sample is less than
@@ -47,9 +48,9 @@ normList xs = map (/ mx) xs
 -- Currently this requires storing the entire output stream in memory
 -- before writing to the file.
 outFileNorm :: forall a p. (AudioSample a, Clock p)
-  => String              -- ^ Filename to write to.
-  -> Double              -- ^ Duration of the wav in seconds.
-  -> Signal p () a       -- ^ Signal representing the sound.
+  => String        -- ^ Filename to write to.
+  -> Double        -- ^ Duration of the wav in seconds.
+  -> Signal p () a -- ^ Signal representing the sound.
   -> IO ()
 outFileNorm = outFileHelp' normList
 
