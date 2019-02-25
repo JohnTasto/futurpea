@@ -11,11 +11,12 @@ module Euterpea.IO.Audio.Basics (
   pchToHz, apToHz
 ) where
 
-import Control.Arrow
-import Control.Arrow.ArrowP
-import Control.Arrow.Operations
-import Euterpea.IO.Audio.Types
-import Euterpea.Music
+import Control.Arrow (Arrow, ArrowChoice, arr)
+import Control.Arrow.Operations (ArrowCircuit, delay)
+
+import Control.Arrow.ArrowP (ArrowP(ArrowP), strip)
+import Euterpea.IO.Audio.Types (Clock, AudioSample, rate, zero)
+import Euterpea.Music (AbsPitch, Pitch, PitchClass(A), absPitch)
 
 
 outA :: (Arrow a) => a b b
