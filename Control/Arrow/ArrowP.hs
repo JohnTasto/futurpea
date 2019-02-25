@@ -9,7 +9,6 @@ import Control.Category (Category (id, (.)))
 
 newtype ArrowP a p b c = ArrowP { strip :: a b c }
 
--- #if __GLASGOW_HASKELL__ >= 610
 instance Category a => Category (ArrowP a p) where
   id = ArrowP id
   ArrowP g . ArrowP f = ArrowP (g . f)
