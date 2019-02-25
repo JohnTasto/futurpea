@@ -1,3 +1,5 @@
+{-# LANGUAGE Arrows #-}
+
 module Euterpea.IO.Audio.Basics
   ( outA
   , integral

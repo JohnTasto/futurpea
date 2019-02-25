@@ -49,10 +49,10 @@ instance ArrowLoop SF where
 
 instance ArrowChoice SF where
   left sf = SF (g sf)
-      where
-        g f x = case x of
-                  Left a  -> let (y, f') = runSF f a in f' `seq` (Left y, SF (g f'))
-                  Right b -> (Right b, SF (g f))
+    where
+      g f = \case
+        Left a  -> let (y, f') = runSF f a in f' `seq` (Left y, SF (g f'))
+        Right b -> (Right b, SF (g f))
 
 instance ArrowCircuit SF where
   delay i = SF (f i)
