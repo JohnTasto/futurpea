@@ -69,20 +69,23 @@ compSine2    = tableSines3N
 exponential1 = tableExponN
 lineSeg1     = tableLinearN
 
+tone, atone :: Clock p => Signal p (Double, Double) Double
 tone     = filterLowPass
---             :: forall p . Clock p => Signal p (Double, Double) Double
 atone    = filterHighPass
---             :: forall p . Clock p => Signal p (Double, Double) Double
+
+reson, areson :: Clock p => Int -> Signal p (Double, Double, Double) Double
 reson    = filterBandPass
---             :: forall p . Clock p =>
---                  Int -> Signal p (Double, Double, Double) Double
 areson   = filterBandStop
---             :: forall p . Clock p =>
---                  Int -> Signal p (Double, Double, Double) Double
+
+butterlp, butterhp:: Clock p => Signal p (Double, Double) Double
 butterlp = filterLowPassBW
 butterhp = filterHighPassBW
+
+butterbp, butterbr :: Clock p => Signal p (Double, Double, Double) Double
 butterbp = filterBandPassBW
 butterbr = filterBandStopBW
+
+comb :: Clock p => Double -> Signal p (Double, Double) Double
 comb     = filterComb
 
 oscil :: (Clock p, ArrowCircuit a) => Table -> Double -> ArrowP a p Double Double
