@@ -23,10 +23,10 @@ module Euterpea.IO.MIDI.ExportMidiFile
   (exportMidiFile)
   where
 
-import Codec.Midi
-import qualified Data.ByteString as Byte
-import Data.Char
-import Numeric
+import Codec.Midi (Ticks, Message(NoteOn, NoteOff, ControlChange, TempoChange, ProgramChange), Midi(Midi), TimeDiv(TicksPerBeat, TicksPerSecond), FileType(SingleTrack, MultiTrack, MultiPattern), Track)
+import qualified Data.ByteString as Byte (ByteString, concat, pack, length, writeFile)
+import Data.Char (intToDigit)
+import Numeric (showIntAtBase)
 
 -- A standard MIDI file has two main sections: a header and a
 -- series of track chunks. Track chunks each have a track header
@@ -156,13 +156,12 @@ makeTrackBody ((ticks, msg):rest) =
 
 endOfTrack = Byte.concat [to7Bits 96, Byte.pack [0xFF, 0x2F, 0x00]]
 
--- Splitting numbers into 7-bit sections and applying flags is done
+-- |Splitting numbers into 7-bit sections and applying flags is done
 -- by the following process:
 -- - convert to a binary string representation
 -- - pad the number to be full bytes
 -- - split from right to left into groups of 7 and apply flags
 -- - convert each 8-bit chunk back to a byte representation
-
 to7Bits :: (Integral a, Show a) => a -> Byte.ByteString
 to7Bits =
   Byte.pack
@@ -175,37 +174,37 @@ to7Bits =
     . padTo 7
     . numToBinStr
 
--- Pad a binary string to be a multiple of i bits:
+-- |Pad a binary string to be a multiple of i bits:
 padTo :: Int -> String -> String
 padTo i xs = if length xs `mod` i == 0 then xs else padTo i ('0':xs)
 
--- Break a string into chunks of length i:
+-- |Break a string into chunks of length i:
 breakBinStrs :: Int -> String -> [String]
 breakBinStrs i s = if length s <= i then [s] else take i s : breakBinStrs i (drop i s)
 
--- Convert a number to a binary string:
+-- |Convert a number to a binary string:
 numToBinStr :: (Integral a, Show a) => a -> String
 numToBinStr i = showIntAtBase 2 intToDigit i ""
 
--- Convert a binary string to an integer:
+-- |Convert a binary string to an integer:
 binStrToNum :: String -> Int
 binStrToNum []       = 0
-binStrToNum ('0':xs) = 2* binStrToNum xs
-binStrToNum ('1':xs) = 1 + 2*binStrToNum xs
+binStrToNum ('0':xs) = 2 * binStrToNum xs
+binStrToNum ('1':xs) = 1 + 2 * binStrToNum xs
 binStrToNum _        = error "bad data."
 
--- Append flags to a string (note, the string must be BACKWARDS):
+-- |Append flags to a string (note, the string must be BACKWARDS):
 fixBinStrs :: [String] -> [String]
 fixBinStrs xs =
   let n = length xs
       bits = replicate (n - 1) '1' ++ "0"
   in  Prelude.zipWith (:) bits xs
 
--- Pad a list from the left until it is a fixed length:
+-- |Pad a list from the left until it is a fixed length:
 pad :: Int -> a -> [a] -> [a]
 pad b x xs = if length xs >= b then xs else pad b x (x:xs)
 
--- Messages have the following encodings:
+-- |Messages have the following encodings:
 
 -- 8x nn vv	Note Off for pitch nn at velocity vv, channel x
 -- 9x nn vv	Note On for pitch nn at velocity vv, channel x

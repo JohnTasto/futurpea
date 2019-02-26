@@ -77,7 +77,7 @@ reson, areson :: Clock p => Int -> Signal p (Double, Double, Double) Double
 reson    = filterBandPass
 areson   = filterBandStop
 
-butterlp, butterhp:: Clock p => Signal p (Double, Double) Double
+butterlp, butterhp :: Clock p => Signal p (Double, Double) Double
 butterlp = filterLowPassBW
 butterhp = filterHighPassBW
 
@@ -184,10 +184,8 @@ randh s =
 delay :: Clock p => Double -> Signal p Double Double
 delay  = delayLine
 
-vdelay :: Clock p => Double -> Signal p (Double, Double) Double
+vdelay, delay1 :: Clock p => Double -> Signal p (Double, Double) Double
 vdelay = delayLine1
-
-delay1 :: Clock p => Double -> Signal p (Double, Double) Double
 delay1 = delayLine1
 
 delayT :: Clock p => Int -> Table -> Signal p Double Double
