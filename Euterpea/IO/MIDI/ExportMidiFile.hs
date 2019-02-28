@@ -23,8 +23,15 @@ module Euterpea.IO.MIDI.ExportMidiFile
   (exportMidiFile)
   where
 
-import Codec.Midi (Ticks, Message(NoteOn, NoteOff, ControlChange, TempoChange, ProgramChange), Midi(Midi), TimeDiv(TicksPerBeat, TicksPerSecond), FileType(SingleTrack, MultiTrack, MultiPattern), Track)
-import qualified Data.ByteString as Byte (ByteString, concat, pack, length, writeFile)
+import Codec.Midi
+  ( FileType (MultiPattern, MultiTrack, SingleTrack)
+  , Message (ControlChange, NoteOff, NoteOn, ProgramChange, TempoChange)
+  , Midi (Midi)
+  , Ticks
+  , TimeDiv (TicksPerBeat, TicksPerSecond)
+  , Track
+  )
+import qualified Data.ByteString as Byte (ByteString, concat, length, pack, writeFile)
 import Data.Char (intToDigit)
 import Numeric (showIntAtBase)
 
