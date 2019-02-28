@@ -20,8 +20,8 @@
 -- Euterpea.
 
 module Euterpea.IO.MIDI.ExportMidiFile
-  (exportMidiFile)
-  where
+  ( exportMidiFile
+  ) where
 
 import Codec.Midi
   ( FileType (MultiPattern, MultiTrack, SingleTrack)

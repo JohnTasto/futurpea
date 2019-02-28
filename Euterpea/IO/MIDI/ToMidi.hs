@@ -2,16 +2,27 @@
 
 module Euterpea.IO.MIDI.ToMidi where
 
-import Euterpea.Music
-import Euterpea.IO.MIDI.MEvent
-import Euterpea.IO.MIDI.GeneralMidi
-import Euterpea.IO.MIDI.MidiIO
-import Euterpea.IO.MIDI.ExportMidiFile
-import Sound.PortMidi
-import Data.List(partition)
-import Data.Char(toLower,toUpper)
-import Data.Maybe (fromMaybe)
 import Codec.Midi
+  ( Channel
+  , FileType (MultiTrack, SingleTrack)
+  , Message (NoteOff, NoteOn, ProgramChange, TempoChange)
+  , Midi (Midi)
+  , Ticks
+  , TimeDiv (TicksPerBeat)
+  , fromAbsTime
+  )
+import Data.Char (toLower, toUpper)
+import Data.List (partition)
+import Data.Maybe (fromMaybe)
+
+import Euterpea.IO.MIDI.ExportMidiFile (exportMidiFile)
+import Euterpea.IO.MIDI.GeneralMidi (toGM)
+import Euterpea.IO.MIDI.MEvent (MEvent (MEvent), eDur, eInst, ePitch, eTime, eVol, perform)
+import Euterpea.Music
+  ( InstrumentName (AcousticBass, AcousticGrandPiano, AcousticGuitarSteel, Flute, Marimba, Percussion, StringEnsemble1, TenorSax, Vibraphone, Viola)
+  , Music
+  , ToMusic1
+  )
 
 type ProgNum     = Int
 

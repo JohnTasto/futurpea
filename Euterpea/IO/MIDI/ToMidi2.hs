@@ -23,19 +23,25 @@
 -- The order in which the tracks appear in the MIDI file is determined by the
 -- structure of the particular Music value.
 --
-module Euterpea.IO.MIDI.ToMidi2 (writeMidi2, resolveInstrumentName) where
-import Euterpea.IO.MIDI.ToMidi
-import Euterpea.IO.MIDI.GeneralMidi
-import Euterpea.IO.MIDI.MEvent
-import Euterpea.Music
-import Euterpea.IO.MIDI.ExportMidiFile
-import Data.List
-import Data.Maybe
+module Euterpea.IO.MIDI.ToMidi2
+  ( writeMidi2
+  , resolveInstrumentName
+  ) where
+
 import Codec.Midi
+  (FileType (MultiTrack, SingleTrack), Midi (Midi), TimeDiv (TicksPerBeat), fromAbsTime)
+import Data.List (elemIndex)
+import Data.Maybe (fromMaybe)
+
+import Euterpea.IO.MIDI.ExportMidiFile (exportMidiFile)
+import Euterpea.IO.MIDI.MEvent (MEvent (MEvent), eInst, perform)
+import Euterpea.IO.MIDI.ToMidi
+  (UserPatchMap, allValid, defUpm, division, makeGMMap, mevsToMessages, splitByInst)
+import Euterpea.Music (InstrumentName (AcousticGrandPiano, CustomInstrument), Music, ToMusic1)
 
 instNameOnly :: String -> String
-instNameOnly [] = []
-instNameOnly (x:xs) = if x==' ' then [] else x : instNameOnly xs
+instNameOnly []     = []
+instNameOnly (x:xs) = if x == ' ' then [] else x : instNameOnly xs
 
 resolveInstrumentName :: InstrumentName -> InstrumentName
 resolveInstrumentName x@(CustomInstrument s) =
