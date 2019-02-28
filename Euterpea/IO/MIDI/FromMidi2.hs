@@ -134,7 +134,7 @@ chunkSeqs :: [Chunk] -> [Chunk]
 chunkSeqs [] = []
 chunkSeqs x@(c:cs) =
     let s = seqWithRests (chunkOnset c) x
-        notInS = filter (\v -> notElem v s) x
+        notInS = filter (`notElem` s) x
     in  if s == [c] then c : chunkSeqs cs
         else Seq s : chunkSeqs notInS
 
@@ -172,11 +172,11 @@ parseFeatures :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
 parseFeatures = removeZeros . chunkToMusic . chunkEvents . perform
 
 parseFeaturesI :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
-parseFeaturesI m =
-    let mevs = perform m
-        (iList, mevsI) = unzip $ splitByInst mevs
-        parsesI = map (removeZeros . chunkToMusic . chunkEvents) mevsI
-    in  chord $ zipWith instrument iList parsesI
+parseFeaturesI m = chord $ zipWith instrument iList parsesI
+  where
+    mevs = perform m
+    (iList, mevsI) = unzip $ splitByInst mevs
+    parsesI = removeZeros . chunkToMusic . chunkEvents <$> mevsI
 
 -- ================
 
@@ -191,19 +191,45 @@ pcShow :: AbsPitch -> String
 pcShow = show . fst . pitch
 
 listShow, listShowN :: (Show a) => [a] -> String
-listShow x = "["++(concat $ intersperse ", " $ map show x)++"]"
-listShowN x = "[\n    "++(concat $ intersperse ",\n    " $ map show x)++"\n]"
+listShow x = "["
+                ++ intercalate ", " (show <$> x)
+                ++ "]"
+listShowN x = "[\n    "
+                ++ intercalate ",\n    " (show <$> x)
+                ++ "\n]"
 
 listShowX :: (Show a) => Int -> [a] -> String
 listShowX i x = let v = concat $ replicate i " " in
-    "[\n"++v++(concat $ intersperse (",\n"++v) $ map show x)++"\n"++v++"]"
+    "[\n"
+      ++ v
+      ++ intercalate (",\n" ++ v) (show <$> x)
+      ++ "\n"
+      ++ v
+      ++ "]"
 
 instance Show Chunk where
-    show (E e) = "E "++doubleShow (eTime e)++" "++pcShow (ePitch e)++" "++doubleShow (eDur e)
-    show s@(Seq x) = "S "++doubleShow (chunkOnset s)++" "++listShowX 4 x
-    show c@(Chord x) = "C "++doubleShow (chunkOnset c)++" "++listShowX 6 x
-    show p@(Par x) = "P "++doubleShow (chunkOnset p)++" "++listShowX 2 x
-    show (R o d) = "R "++doubleShow o++" "++doubleShow d
+    show (E e) = "E "
+                   ++ doubleShow (eTime e)
+                   ++ " "
+                   ++ pcShow (ePitch e)
+                   ++ " "
+                   ++ doubleShow (eDur e)
+    show s@(Seq x) = "S "
+                       ++ doubleShow (chunkOnset s)
+                       ++ " "
+                       ++ listShowX 4 x
+    show c@(Chord x) = "C "
+                         ++ doubleShow (chunkOnset c)
+                         ++ " "
+                         ++ listShowX 6 x
+    show p@(Par x) = "P "
+                       ++ doubleShow (chunkOnset p)
+                       ++ " "
+                       ++ listShowX 2 x
+    show (R o d) = "R "
+                     ++ doubleShow o
+                     ++ " "
+                     ++ doubleShow d
 
 -- |An Ord instance for Chunk that enforces sorting based on onset time. No
 -- other features are considered.
@@ -213,28 +239,25 @@ instance Ord Chunk where
 -- Functions to determine the start time (onset) and duration of a Chunk.
 
 chunkOnset :: Chunk -> Onset
-chunkOnset (Seq x) = if null x then error "Empty Seq!" else chunkOnset (head x)
-chunkOnset (Chord x) = if null x then error "Empty Chord!" else chunkOnset (head x)
-chunkOnset (Par x) = if null x then 0 else minimum $ map chunkOnset x
-chunkOnset (E e) = eTime e
-chunkOnset (R o d) = o
+chunkOnset (Seq x)   = if null x then error "Empty Seq!"   else chunkOnset $ head x
+chunkOnset (Chord x) = if null x then error "Empty Chord!" else chunkOnset $ head x
+chunkOnset (Par x)   = if null x then 0                    else minimum $ chunkOnset <$> x
+chunkOnset (E e)     = eTime e
+chunkOnset (R o d)   = o
 
 chunkEnd :: Chunk -> Onset
-chunkEnd (Seq x) = if null x then error "Empty Seq!" else chunkEnd (last x)
-chunkEnd (Chord x) = if null x then error "Empty Chord!" else chunkEnd (head x)
-chunkEnd (Par x) = if null x then 0 else maximum $ map chunkEnd x
-chunkEnd (E e) = eTime e + eDur e
-chunkEnd (R o d) = o + d
+chunkEnd (Seq x)   = if null x then error "Empty Seq!"   else chunkEnd $ last x
+chunkEnd (Chord x) = if null x then error "Empty Chord!" else chunkEnd $ head x
+chunkEnd (Par x)   = if null x then 0                    else maximum $ chunkEnd <$> x
+chunkEnd (E e)     = eTime e + eDur e
+chunkEnd (R o d)   = o + d
 
 chunkDur :: Chunk -> Dur
-chunkDur (Seq x) = if null x then error "Empty Seq!" else sum $ map chunkDur x
+chunkDur (Seq x)   = if null x then error "Empty Seq!"   else sum $ chunkDur <$> x
 chunkDur (Chord x) = if null x then error "Empty Chord!" else chunkDur (head x)
-chunkDur c@(Par x) = if null x then 0 else
-    let o = chunkOnset c
-        e = chunkEnd c
-    in  e-o
-chunkDur (E e) = eDur e
-chunkDur (R o d) = d
+chunkDur c@(Par x) = if null x then 0                    else chunkEnd c - chunkOnset c
+chunkDur (E e)     = eDur e
+chunkDur (R o d)   = d
 
 -- Special sorting function for MEvents.
 
