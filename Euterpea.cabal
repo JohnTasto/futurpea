@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.1.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bb827048580a5d3df9304b811d84f4a82f5e21baaa699e1dbf275dc8977107cb
+-- hash: 59a5a9204aa4646a7dae4ec104e68f1e8733c3cbfac182938c17ef8989d8528d
 
 name:           Euterpea
 version:        2.0.6
@@ -32,8 +32,6 @@ copyright:      Copyright (c) 2008-2017 Euterpea authors
 license:        BSD3
 license-file:   License
 build-type:     Simple
-extra-source-files:
-    ReadMe.txt
 
 library
   exposed-modules:

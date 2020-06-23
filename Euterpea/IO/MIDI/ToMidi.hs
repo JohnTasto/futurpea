@@ -1,5 +1,3 @@
-{-# LINE 8 "ToMidi.hs" #-}
-
 module Euterpea.IO.MIDI.ToMidi where
 
 import Codec.Midi
@@ -129,4 +127,3 @@ writeMidi fn m = exportMidiFile fn $ toMidi $ perform m
 --    (defaultOutput playMidi) midi
 --    terminate
 --    return ()
-

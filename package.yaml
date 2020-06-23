@@ -37,8 +37,6 @@ ghc-options:
   - -O2
   - -funbox-strict-fields
   - -fexcess-precision
-extra-source-files:
-  - ReadMe.txt
 
 default-extensions:
   - Arrows

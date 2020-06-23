@@ -1,4 +1,8 @@
-resolver: lts-13.7
+# resolver: lts-13.7   # original, ghc-8.6.3
+resolver: lts-13.12    # oldest option for ghc-8.6.4
+# resolver: lts-13.19  # newest option for ghc-8.6.4
+# resolver: lts-13.20  # oldest option for ghc-8.6.5
+# resolver: lts-14.7   # newest option for ghc-8.6.5
 
 packages:
   - ./

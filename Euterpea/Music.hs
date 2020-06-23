@@ -215,25 +215,25 @@ bn, wn, hn, qn, en, sn, tn, sfn, dwn, dhn,
     dqn, den, dsn, dtn, ddhn, ddqn, dden :: Dur
 bnr, wnr, hnr, qnr, enr, snr, tnr, sfnr, dwnr, dhnr,
     dqnr, denr, dsnr, dtnr, ddhnr, ddqnr, ddenr :: Music Pitch
-bn  = 2;    bnr  = rest bn  -- ^brevis rest
-wn  = 1;    wnr  = rest wn  -- ^whole note rest
-hn  = 1/2;  hnr  = rest hn  -- ^half note rest
-qn  = 1/4;  qnr  = rest qn  -- ^quarter note rest
-en  = 1/8;  enr  = rest en  -- ^eighth note rest
-sn  = 1/16; snr  = rest sn  -- ^sixteenth note rest
-tn  = 1/32; tnr  = rest tn  -- ^thirty-second note rest
-sfn = 1/64; sfnr = rest sfn -- ^sixty-fourth note rest
+bn   = 2;    bnr   = rest bn   -- brevis rest
+wn   = 1;    wnr   = rest wn   -- whole note rest
+hn   = 1/2;  hnr   = rest hn   -- half note rest
+qn   = 1/4;  qnr   = rest qn   -- quarter note rest
+en   = 1/8;  enr   = rest en   -- eighth note rest
+sn   = 1/16; snr   = rest sn   -- sixteenth note rest
+tn   = 1/32; tnr   = rest tn   -- thirty-second note rest
+sfn  = 1/64; sfnr  = rest sfn  -- sixty-fourth note rest
 -- Dotted
-dwn = 3/2;  dwnr = rest dwn -- ^dotted whole note rest
-dhn = 3/4;  dhnr = rest dhn -- ^dotted half note rest
-dqn = 3/8;  dqnr = rest dqn -- ^dotted quarter note rest
-den = 3/16; denr = rest den -- ^dotted eighth note rest
-dsn = 3/32; dsnr = rest dsn -- ^dotted sixteenth note rest
-dtn = 3/64; dtnr = rest dtn -- ^dotted thirty-second note rest
+dwn  = 3/2;  dwnr  = rest dwn  -- dotted whole note rest
+dhn  = 3/4;  dhnr  = rest dhn  -- dotted half note rest
+dqn  = 3/8;  dqnr  = rest dqn  -- dotted quarter note rest
+den  = 3/16; denr  = rest den  -- dotted eighth note rest
+dsn  = 3/32; dsnr  = rest dsn  -- dotted sixteenth note rest
+dtn  = 3/64; dtnr  = rest dtn  -- dotted thirty-second note rest
 -- Double Dotted
-ddhn = 7/8;  ddhnr = rest ddhn -- ^double-dotted half note rest
-ddqn = 7/16; ddqnr = rest ddqn -- ^double-dotted quarter note rest
-dden = 7/32; ddenr = rest dden -- ^double-dotted eighth note rest
+ddhn = 7/8;  ddhnr = rest ddhn -- double-dotted half note rest
+ddqn = 7/16; ddqnr = rest ddqn -- double-dotted quarter note rest
+dden = 7/32; ddenr = rest dden -- double-dotted eighth note rest
 
 -- |The conversion for Pitch and AbsPitch differs from previous versions
 -- of Euterpea. In Euterpea 1.x, (C,5) was pitch number 60, which is not
