@@ -1,8 +1,4 @@
-{-# LANGUAGE Arrows                    #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, FlexibleContexts, NoMonomorphismRestriction, ScopedTypeVariables #-}
 
 -- Euterpea adaptation of some unit generators from csound
 -- -------------------------------------------------------

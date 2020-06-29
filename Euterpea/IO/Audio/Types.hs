@@ -1,3 +1,5 @@
+{-# LANGUAGE EmptyDataDecls, FlexibleInstances #-}
+
 module Euterpea.IO.Audio.Types where
 
 import Control.Arrow.ArrowP (ArrowP)

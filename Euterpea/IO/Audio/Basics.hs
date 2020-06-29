@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, FlexibleContexts, ScopedTypeVariables #-}
 
 module Euterpea.IO.Audio.Basics
   ( outA

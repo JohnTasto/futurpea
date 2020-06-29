@@ -239,15 +239,14 @@ isSE (T  i)  = False
 
 -- |The 'splitByI' function partitions a stream to select a specific instrument's events.
 splitByI :: Int -> [SimpleMsg] -> ([SimpleMsg],[SimpleMsg])
-splitByI i0 = \case
-  [] -> ([],[])
-  (x:xs) -> case x of
-    SE x' -> if f x then (x:ts, fs) else (ts, x:fs)
-    T i   -> (x:ts, x:fs) -- add tempos to both streams
-    where
-      (ts,fs) = splitByI i0 xs
-      f (SE (_, _, _, i1, _)) = i0 == i1
-      f _                     = False
+splitByI i0 []     = ([],[])
+splitByI i0 (x:xs) = case x of
+  SE x' -> if f x then (x:ts, fs) else (ts, x:fs)
+  T  i  -> (x:ts, x:fs)  -- add tempos to both streams
+  where
+    (ts,fs)                 = splitByI i0 xs
+    f (SE (_, _, _, i1, _)) = i0 == i1
+    f _                     = False
 
 -- |This function is an error-handling method for MIDI files which have
 -- mismatched note on/off events. This seems to be common in output from

@@ -1,7 +1,4 @@
-{-# LANGUAGE Arrows              #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Arrows, FlexibleContexts, NamedFieldPuns, ScopedTypeVariables #-}
 
 -- |Render a Music object to a audio signal function that can be further
 -- manipulated or saved to a file.  It is channel-agnostic in that it is

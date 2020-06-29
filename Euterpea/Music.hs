@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Euterpea.Music where
 
@@ -134,7 +134,7 @@ data NoteHead  =
 type Volume = Int
 
 addVolume :: Volume -> Music Pitch -> Music (Pitch,Volume)
-addVolume v = mMap (,v)
+addVolume v = mMap (\p -> (p,v))
 
 data NoteAttribute =
     Volume  Int        --  ^MIDI convention: 0=min, 127=max

@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, ScopedTypeVariables #-}
+
 module Euterpea.IO.Audio.IO (
     outFile
   , outFileNorm

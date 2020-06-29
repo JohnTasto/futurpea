@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts #-}
+
 module Control.Arrow.ArrowP where
 
 import Prelude hiding (id, (.))

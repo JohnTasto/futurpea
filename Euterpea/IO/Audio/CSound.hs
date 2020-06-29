@@ -1,5 +1,4 @@
-{-# LANGUAGE Arrows                    #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE Arrows, NoMonomorphismRestriction #-}
 
 -- |This module is strictly for backward compatibility with Euterpea 0.1.0,
 -- which used many csound names for the basic signal functions.
