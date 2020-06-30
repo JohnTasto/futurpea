@@ -17,19 +17,19 @@ instance Clock AudRate where
 instance Clock CtrRate where
   rate _ = 4410
 
-type Signal clk a b    = ArrowP SF clk a b
-type SigFun clk a b    = ArrowP SF clk a b
+type Signal clk a b = ArrowP SF clk a b
+type SigFun clk a b = ArrowP SF clk a b
 
-type AudSF a b  = SigFun AudRate a b
-type CtrSF a b  = SigFun CtrRate a b
+type AudSF a b = SigFun AudRate a b
+type CtrSF a b = SigFun CtrRate a b
 
--- |Arbitrary number of channels (say, 5.1) can be supported by just adding more
+-- | Arbitrary number of channels (say, 5.1) can be supported by just adding more
 -- instances of the 'AudioSample' type class.
 class AudioSample a where
   zero :: a
   mix :: a -> a -> a
   collapse :: a -> [Double]
-  numChans :: a -> Int -- ^ allows us to reify the number of channels from the type.
+  numChans :: a -> Int  -- ^ allows us to reify the number of channels from the type.
 
 instance AudioSample Double where
   zero = 0
@@ -38,11 +38,11 @@ instance AudioSample Double where
   numChans _ = 1
 
 instance AudioSample (Double,Double) where
-  zero = (0,0)
-  mix (a,b) (c,d) = (a+c,b+d)
-  collapse (a,b) = [a,b]
+  zero = (0, 0)
+  mix (a, b) (c, d) = (a+c, b+d)
+  collapse (a, b) = [a, b]
   numChans _ = 2
 
---  |Some useful type synonyms:
+-- | Some useful type synonyms:
 type Mono p = Signal p () Double
-type Stereo p = Signal p () (Double,Double)
+type Stereo p = Signal p () (Double, Double)

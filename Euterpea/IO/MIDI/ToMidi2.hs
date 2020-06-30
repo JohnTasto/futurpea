@@ -22,7 +22,7 @@
 -- Note: this module does NOT allow specification of particular track numbers.
 -- The order in which the tracks appear in the MIDI file is determined by the
 -- structure of the particular Music value.
---
+
 module Euterpea.IO.MIDI.ToMidi2
   ( writeMidi2
   , resolveInstrumentName
@@ -44,28 +44,23 @@ instNameOnly []     = []
 instNameOnly (x:xs) = if x == ' ' then [] else x : instNameOnly xs
 
 resolveInstrumentName :: InstrumentName -> InstrumentName
-resolveInstrumentName x@(CustomInstrument s) =
-    let iName = instNameOnly s
-        allInsts = take 128 $ enumFrom AcousticGrandPiano
-        i = fromMaybe (-1) . elemIndex iName $ show <$> allInsts
-    in  if i >= 0 then allInsts !! i else x
-resolveInstrumentName x = x
+resolveInstrumentName x@(CustomInstrument s) = if i >= 0 then allInsts !! i else x where
+  iName    = instNameOnly s
+  allInsts = take 128 $ enumFrom AcousticGrandPiano
+  i        = fromMaybe (-1) . elemIndex iName $ show <$> allInsts
+resolveInstrumentName x                      = x
 
 resolveMEventInsts :: [(InstrumentName, [MEvent])] -> [(InstrumentName, [MEvent])]
 resolveMEventInsts = map f1 where
-    f1 (iname, mevs) = (resolveInstrumentName iname, map f2 mevs)
-    f2 mev = mev{eInst = resolveInstrumentName (eInst mev)}
+  f1 (iname, mevs) = (resolveInstrumentName iname, map f2 mevs)
+  f2 mev           = mev{eInst = resolveInstrumentName (eInst mev)}
 
 writeMidi2 :: ToMusic1 a => FilePath -> Music a -> IO ()
 writeMidi2 fn m = exportMidiFile fn $ toMidiUPM2 defUpm $ perform m
 
 toMidiUPM2 :: UserPatchMap -> [MEvent] -> Midi
-toMidiUPM2 upm pf =
-  let split     = resolveMEventInsts $ splitByInst pf
-      insts     = map fst split
-      rightMap  = if allValid upm insts then upm else makeGMMap insts
-    in Midi (if length split == 1
-               then SingleTrack
-               else MultiTrack)
-            (TicksPerBeat division)
-            $ fromAbsTime . mevsToMessages rightMap <$> split
+toMidiUPM2 upm pf = Midi (if length split == 1 then SingleTrack else MultiTrack)
+  (TicksPerBeat division) $ fromAbsTime . mevsToMessages rightMap <$> split where
+  split    = resolveMEventInsts $ splitByInst pf
+  insts    = map fst split
+  rightMap = if allValid upm insts then upm else makeGMMap insts

@@ -72,9 +72,9 @@ import Euterpea.Music
 data NEvent = On | Off
   deriving (Eq, Show, Ord)
 
-data SimpleMsg =
-    SE (Rational, AbsPitch, Volume, Int, NEvent)
-  | T (Rational, Rational)
+data SimpleMsg
+  = SE (Rational, AbsPitch, Volume, Int, NEvent)
+  | T  (Rational, Rational)
   deriving (Eq, Show)
 
 instance Ord SimpleMsg where
@@ -92,47 +92,43 @@ instance Ord SimpleMsg where
 -- can later be filtered out without affecting the timing of support events.
 
 addTrackTicks :: Int -> [(Ticks, a)] -> [(Ticks, a)]
-addTrackTicks sum []         = []
-addTrackTicks sum ((t,x):ts) = (t+sum,x) : addTrackTicks (t+sum) ts
+addTrackTicks sum []          = []
+addTrackTicks sum ((t, x):ts) = (t+sum, x) : addTrackTicks (t+sum) ts
 
--- |The following function addresses a ticks to Music duration conversion.
+-- | The following function addresses a ticks to Music duration conversion.
 applyTD :: TimeDiv -> SimpleMsg -> SimpleMsg
-applyTD tdw x =
-  case x of
-    T(t,i)        -> T(fixT tdw t, i)
-    SE(t,p,v,i,e) -> SE(fixT tdw t, p, v, i, e)
+applyTD tdw x = case x of
+  T  (t, i)          -> T  (fixT tdw t, i)
+  SE (t, p, v, i, e) -> SE (fixT tdw t, p, v, i, e)
   where
     fixT tdw t = case tdw of
       TicksPerBeat td        -> t / (fromIntegral td * 4)
       TicksPerSecond fps tpf -> t / fromIntegral (fps * tpf)
 
--- |The 'midiToEvents' function will take a Midi structure (from importFile,
+-- | The 'midiToEvents' function will take a Midi structure (from importFile,
 -- for example) and convert it to a list of lists of SimpleMsgs. Each outer
 -- list represents a track in the original Midi.
 midiToEvents :: Midi -> [[SimpleMsg]]
-midiToEvents m =
-  let ts = simplifyTrack 0 . addTrackTicks 0 <$> tracks m
-  in  distributeTempos $ map (map (applyTD $ timeDiv m)) ts
+midiToEvents m = distributeTempos $ map (map (applyTD $ timeDiv m)) ts
+  where ts = simplifyTrack 0 . addTrackTicks 0 <$> tracks m
 
 simplifyTrack :: Int -> [(Ticks, Message)] -> [SimpleMsg]
 simplifyTrack icur []         = []
-simplifyTrack icur ((t,m):ts) =
-  case m of
-    (NoteOn c p v)      -> SE (fromIntegral t, p, v, icur, On) : simplifyTrack icur ts
-    (NoteOff c p v)     -> SE (fromIntegral t, p, v, icur, Off) : simplifyTrack icur ts
-    (ProgramChange c p) -> simplifyTrack (if c==9 then (-1) else p) ts
-    (TempoChange x)     -> T (fromIntegral t, fromIntegral x) : simplifyTrack icur ts
-    _                   -> simplifyTrack icur ts
+simplifyTrack icur ((t,m):ts) = case m of
+  (NoteOn      c p v) -> SE (fromIntegral t, p, v, icur, On ) : simplifyTrack icur ts
+  (NoteOff     c p v) -> SE (fromIntegral t, p, v, icur, Off) : simplifyTrack icur ts
+  (ProgramChange c p) -> simplifyTrack (if c == 9 then (- 1) else p) ts
+  (TempoChange     x) -> T  (fromIntegral t, fromIntegral x)  : simplifyTrack icur ts
+  _                   -> simplifyTrack icur ts
 
 -- The first track is the tempo track. It's events need to be distributed
 -- across the other tracks. This function below is called for that purpose
 -- in midiToEvents above.
 
 distributeTempos :: [[SimpleMsg]] -> [[SimpleMsg]]
-distributeTempos tracks =
-  if length tracks > 1
-    then map (sort . (head tracks ++)) (tail tracks)
-    else tracks -- must be a single-track file with embedded tempo changes.
+distributeTempos tracks = if length tracks > 1
+  then map (sort . (head tracks ++)) (tail tracks)
+  else tracks -- must be a single-track file with embedded tempo changes.
 
 
 -- The eventsToMusic function will convert a list of lists of SimpleMsgs
@@ -172,106 +168,98 @@ distributeTempos tracks =
 -- Tempo changes are processed within each instrument.
 
 eventsToMusic :: [[SimpleMsg]] -> Music (Pitch, Volume)
-eventsToMusic tracks =
-  let tracks' = splitByInstruments tracks -- handle any mid-track program changes
-      is = toInstr . getInstrument <$> filter (not . null) tracks' -- instruments
-      tDef = 500000 -- current tempo, 120bpm as microseconds per qn
-  in  chord . zipWith instrument is $ map (seToMusic tDef) tracks'
+eventsToMusic tracks = chord . zipWith instrument is $ map (seToMusic tDef) tracks' where
+  tracks' = splitByInstruments tracks                                -- handle any mid-track program changes
+  is      = toInstr . getInstrument <$> filter (not . null) tracks'  -- instruments
+  tDef    = 500000                                                   -- current tempo, 120bpm as microseconds per qn
 
-toInstr :: Int -> InstrumentName
-toInstr i = if i<0 then Percussion else toEnum i
+  toInstr :: Int -> InstrumentName
+  toInstr i = if i < 0 then Percussion else toEnum i
 
-seToMusic :: Rational -> [SimpleMsg] -> Music (Pitch, Volume)
-seToMusic tCurr [] = rest 0
-seToMusic tCurr (e1@(SE(t,p,v,ins,On)):es) =
-  let piMatch (SE(t1,p1,v1,ins1,e1)) = (p1 == p && ins1 == ins) && e1 == Off
-      piMatch (T(t1,x))              = False
-      is = findIndices piMatch es              -- find mactching note-offs
-      SE(t1,p1,v1,ins1, e) = es !! head is     -- pick the first matching note-off
-      n = (rest t :+: note (t1-t) (pitch p,v)) -- create a Music note
-  in  if v > 0
-        then if not $ null is -- a zero volume note is silence
-          then n :=: seToMusic tCurr es -- found an off
-          else seToMusic tCurr $ (e1:es) ++ [correctOff e1 es] -- missing off case
-        else seToMusic tCurr es
-seToMusic tCurr (e1@(T (t,newTempo)):es) =
-  let t2 = getTime $ head es -- find time of next event after tempo change
-      tfact = tCurr / newTempo -- calculate tempo change factor
-      es' = map (changeTime (subtract t)) es -- adjust start times
-      m = rest t :+: tempo tfact (seToMusic newTempo es')
-  in  if null es
-        then rest 0
-        else m
-          where
-            changeTime f (SE (t,p,v,i,e)) = SE (f t,p,v,i,e)
-            changeTime f (T (t,x))        = T (f t, x)
-seToMusic tCurr (_:es) = seToMusic tCurr es -- ignore note-offs (already handled)
+  seToMusic :: Rational -> [SimpleMsg] -> Music (Pitch, Volume)
+  seToMusic tCurr []                             = rest 0
+  seToMusic tCurr (e@(SE (t, p, v, i, On)) : es) = if v > 0  -- a zero volume note is silence
+    then if not $ null offs
+      then n :=: seToMusic tCurr es                       -- found an off
+      else seToMusic tCurr $ (e:es) ++ [correctOff e es]  -- missing off case
+    else seToMusic tCurr es
+    where
+      n                             = rest t :+: note (t'-t) (pitch p, v)  -- create a Music note
+      SE (t', _, _, _, _)           = es !! head offs                      -- pick the first matching note-off
+      offs                          = findIndices isOff es                 -- find mactching note-offs
+      isOff (SE (_, p', _, i', oo)) = (p' == p && i' == i) && oo == Off
+      isOff (T  _)                  = False
+  seToMusic tCurr (T (t, newTempo)         : es) = if null es then rest 0 else m
+    where
+      m                                = rest t :+: tempo tfact (seToMusic newTempo es')
+      tfact                            = tCurr / newTempo               -- calculate tempo change factor
+      es'                              = map (adjTime (subtract t)) es  -- adjust start times
+      adjTime f (SE (t', p, v, i, oo)) = SE (f t', p, v, i, oo)
+      adjTime f (T  (t', x))           = T  (f t', x)
+  seToMusic tCurr (_                       : es) = seToMusic tCurr es   -- ignore note-offs (already handled)
 
--- |Finding the time of an event.
+-- | Finding the time of an event.
 getTime :: SimpleMsg -> Rational
 getTime (SE (t, _, _, _, _)) = t
 getTime (T  (t, _))          = t
 
--- |Finding the instrument associated with a track. Only the first
+-- | Finding the instrument associated with a track. Only the first
 -- instrument label to appear is chosen. If a program change happens
 -- mid-track, it will not be counted.
 getInstrument :: [SimpleMsg] -> Int
-getInstrument (SE (_, _, _,i, _) : xs) = i
-getInstrument (T x : xs)               = getInstrument xs
-getInstrument []                       = -1 -- No instrument assigned
+getInstrument (SE (_, _, _, i, _) : xs) = i
+getInstrument (T x : xs)                = getInstrument xs
+getInstrument []                        = -1  -- No instrument assigned
 
--- The following function ensure that only one instrument appears in
+-- | The following function ensure that only one instrument appears in
 -- each list of SimpleMsgs. This is necessary in order to ensure that
 -- instrument assignments occur at the outermost level of the Music.
 splitByInstruments :: [[SimpleMsg]] -> [[SimpleMsg]]
 splitByInstruments [] = []
-splitByInstruments (t:ts) = if any isSE t' then t' : ts' else ts'
-  where
-    i = getInstrument t
-    (t',t'') = splitByI i t
-    ts' = if any isSE t''
-            then splitByInstruments (t'':ts)
-            else splitByInstruments ts
+splitByInstruments (t:ts) = if any isSE t' then t':ts' else ts' where
+  i         = getInstrument t
+  (t', t'') = splitByI i t
+  ts'       = if any isSE t''
+    then splitByInstruments (t'':ts)
+    else splitByInstruments ts
 
 isSE :: SimpleMsg -> Bool
 isSE (SE xs) = True
 isSE (T  i)  = False
 
--- |The 'splitByI' function partitions a stream to select a specific instrument's events.
-splitByI :: Int -> [SimpleMsg] -> ([SimpleMsg],[SimpleMsg])
-splitByI i0 []     = ([],[])
-splitByI i0 (x:xs) = case x of
-  SE x' -> if f x then (x:ts, fs) else (ts, x:fs)
-  T  i  -> (x:ts, x:fs)  -- add tempos to both streams
+-- | The 'splitByI' function partitions a stream to select a specific instrument's events.
+splitByI :: Int -> [SimpleMsg] -> ([SimpleMsg], [SimpleMsg])
+splitByI _ []     = ([], [])
+splitByI i (x:xs) = case x of
+  SE _ -> if f x then (x:ts, fs) else (ts, x:fs)
+  T  i -> (x:ts, x:fs)  -- add tempos to both streams
   where
-    (ts,fs)                 = splitByI i0 xs
-    f (SE (_, _, _, i1, _)) = i0 == i1
+    (ts, fs)                = splitByI i xs
+    f (SE (_, _, _, i', _)) = i == i'
     f _                     = False
 
--- |This function is an error-handling method for MIDI files which have
+-- | This function is an error-handling method for MIDI files which have
 -- mismatched note on/off events. This seems to be common in output from
 -- some software. The solution used here is to assume that the note lasts
 -- until the the time of the last event in the list.
 correctOff :: SimpleMsg -> [SimpleMsg] -> SimpleMsg
-correctOff (SE(t,p,v,ins,e)) [] = SE(t,p,v,ins,Off)
-correctOff (SE(t,p,v,ins,e)) es =
-  let SE(t1,p1,v1,ins1,e1) = last $ filter isSE es
-  in  SE(t1,p,v,ins,Off)
+correctOff (SE (t, p, v, i, e)) [] = SE (t,  p, v, i, Off)
+correctOff (SE (t, p, v, i, e)) es = SE (t', p, v, i, Off) where
+  SE (t', _, _, _, _) = last $ filter isSE es
 
--- |The 'fromMidi' function wraps the combination of midiToEvents and
+-- | The 'fromMidi' function wraps the combination of midiToEvents and
 -- eventsToMusic and performs the final conversion to Music1.
 fromMidi :: Midi -> Music1
-fromMidi m = mMap (\(p,v) -> (p, [Volume v])) $ eventsToMusic seList
-  where
-    seList = midiToEvents m
-    iNums = filter (>0) $ getInstrument <$> seList
-    upm = makeUPM $ toEnum <$> iNums
+fromMidi m = mMap (\(p, v) -> (p, [Volume v])) $ eventsToMusic seList where
+  seList = midiToEvents m
+  iNums  = filter (> 0) $ getInstrument <$> seList
+  upm    = makeUPM $ toEnum <$> iNums
 
--- |This function is to correct for the fact that channel 10 is
+-- | This function is to correct for the fact that channel 10 is
 -- traditionally reserved for percussion. If there is no percussion,
 -- then channel 10 must remain empty. Channels are indexed from zero
 -- in this representation, so channel 1 is 0, channel 10 is 9, etc.
 makeUPM :: [InstrumentName] -> UserPatchMap
 makeUPM is = case elemIndex Percussion is of
-  Nothing -> zip is ([0..8]++[10..]) -- no percussion
-  Just i  -> (is !! i, 9) : zip (take i is ++ drop (i+1) is) ([0..8]++[10..])
+  Nothing -> zip is ([0..8] ++ [10..])  -- no percussion
+  Just i  -> (is !! i, 9) : zip (take i is ++ drop (i+1) is) ([0..8] ++ [10..])

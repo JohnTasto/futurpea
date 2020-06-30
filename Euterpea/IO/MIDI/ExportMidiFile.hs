@@ -27,6 +27,7 @@ import Codec.Midi
   ( FileType (MultiPattern, MultiTrack, SingleTrack)
   , Message (ControlChange, NoteOff, NoteOn, ProgramChange, TempoChange)
   , Midi (Midi)
+  , Tempo
   , Ticks
   , TimeDiv (TicksPerBeat, TicksPerSecond)
   , Track
@@ -44,14 +45,12 @@ import Numeric (showIntAtBase)
 
 
 makeFile :: Midi -> Byte.ByteString
-makeFile (Midi ft td trs) =
-    let ticksPerQn =
-          case td of
-            TicksPerBeat x     -> x
-            TicksPerSecond x y -> error ("(makeFile) Don't know how "++ "to handle TicksPerSecond yet.")
-        header = makeHeader ft (length trs) ticksPerQn
-        body = map makeTrack trs
-    in  Byte.concat (header:body)
+makeFile (Midi ft td trs) = Byte.concat (header:body) where
+  ticksPerQn = case td of
+    TicksPerBeat x     -> x
+    TicksPerSecond x y -> error ("(makeFile) Don't know how " ++ "to handle TicksPerSecond yet.")
+  header     = makeHeader ft (length trs) ticksPerQn
+  body       = map makeTrack trs
 
 -- ============
 
@@ -69,8 +68,7 @@ makeFile (Midi ft td trs) =
 -- dd dd is the delta-time in ticks for a quarternote or beat.
 
 midiHeaderConst :: Byte.ByteString
-midiHeaderConst =
-    Byte.pack [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06]
+midiHeaderConst = Byte.pack [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06]
 
 type TrackCount = Int
 type TicksPerQN = Int
@@ -78,25 +76,22 @@ type TicksPerQN = Int
 -- The MIDI file header is built as described above.
 
 makeHeader :: FileType -> TrackCount -> TicksPerQN -> Byte.ByteString
-makeHeader ft numTracks ticksPerQn =
-    let
-        ft' =
-          case ft of
-            SingleTrack  -> [0x00, 0x00]
-            MultiTrack   -> [0x00, 0x01]
-            MultiPattern -> error ("(makeHeader) Don't know " ++ "how to handle multi-pattern yet.")
-        numTracks' = padByte 2 numTracks
-        ticksPerQn' = padByte 2 ticksPerQn
-    in  if numTracks > 16 then error ("(makeHeader) Don't know how to "++
-                            "handle >16 tracks!")
-        else Byte.concat [midiHeaderConst, Byte.pack ft', numTracks', ticksPerQn']
+makeHeader ft numTracks ticksPerQn = if numTracks > 16
+  then error ("(makeHeader) Don't know how to " ++ "handle >16 tracks!")
+  else Byte.concat [midiHeaderConst, Byte.pack ft', numTracks', ticksPerQn']
+  where
+  ft'         = case ft of
+    SingleTrack  -> [0x00, 0x00]
+    MultiTrack   -> [0x00, 0x01]
+    MultiPattern -> error ("(makeHeader) Don't know " ++ "how to handle multi-pattern yet.")
+  numTracks'  = padByte 2 numTracks
+  ticksPerQn' = padByte 2 ticksPerQn
 
 padByte :: Integral a => Int -> a -> Byte.ByteString
-padByte byteCount i =
-  let b = Byte.pack [fromIntegral i]
-      n = Byte.length b
-      padding = Byte.pack $ replicate (byteCount - n) 0x00
-  in  if n < byteCount then Byte.concat [padding, b] else b
+padByte byteCount i = if n < byteCount then Byte.concat [padding, b] else b where
+  b       = Byte.pack [fromIntegral i]
+  n       = Byte.length b
+  padding = Byte.pack $ replicate (byteCount - n) 0x00
 
 -- ================
 
@@ -113,21 +108,21 @@ padByte byteCount i =
 -- its header.
 
 makeTrack :: Track Ticks -> Byte.ByteString
-makeTrack t =
-    let body = makeTrackBody t
-        header = makeTrackHeader body
-    in  Byte.concat [header, body]
+makeTrack t = Byte.concat [header, body] where
+  body   = makeTrackBody t
+  header = makeTrackHeader body
 
 trackHeaderConst :: Byte.ByteString
 trackHeaderConst = Byte.pack [0x4D, 0x54, 0x72, 0x6B]
 
 makeTrackHeader :: Byte.ByteString -> Byte.ByteString
-makeTrackHeader tbody =
-  let  len = Byte.length tbody
-       f = Byte.pack
-             . map (fromIntegral . binStrToNum . reverse)
-             . breakBinStrs 8 . pad (8*4) '0' . numToBinStr
-    in Byte.concat [trackHeaderConst, f len]
+makeTrackHeader tbody = Byte.concat [trackHeaderConst, f len] where
+  len = Byte.length tbody
+  f   = Byte.pack
+        . map (fromIntegral . binStrToNum . reverse)
+        . breakBinStrs 8
+        . pad (8*4) '0'
+        . numToBinStr
 
 -- Track events have two components: a variable-length delta-time and
 -- a message. The delta-time is the number of ticks between the last
@@ -150,68 +145,69 @@ makeTrackHeader tbody =
 -- Result as hex               8    1      4    0
 
 makeTrackBody :: Track Ticks -> Byte.ByteString
-makeTrackBody [] = endOfTrack -- end marker, very important!
-makeTrackBody ((ticks, msg):rest) =
-  let b = msgToBytes msg
-      b' = [to7Bits ticks, msgToBytes msg, makeTrackBody rest]
-  in  if Byte.length b > 0 then Byte.concat b' else makeTrackBody rest
+makeTrackBody []                  = endOfTrack  -- end marker, very important!
+makeTrackBody ((ticks, msg):rest) = if Byte.length b > 0
+  then Byte.concat b'
+  else makeTrackBody rest
+  where
+    b  = msgToBytes msg
+    b' = [to7Bits ticks, msgToBytes msg, makeTrackBody rest]
 
 -- The end of track marker is set 96 ticks after the last event in the
 -- track. This offset is arbitrary, but it helps avoid clipping the notes
 -- at the end of a file during playback in a program like Winamp or
 -- Quicktime.
 
+endOfTrack :: Byte.ByteString
 endOfTrack = Byte.concat [to7Bits 96, Byte.pack [0xFF, 0x2F, 0x00]]
 
--- |Splitting numbers into 7-bit sections and applying flags is done
+-- | Splitting numbers into 7-bit sections and applying flags is done
 -- by the following process:
 -- - convert to a binary string representation
 -- - pad the number to be full bytes
 -- - split from right to left into groups of 7 and apply flags
 -- - convert each 8-bit chunk back to a byte representation
 to7Bits :: (Integral a, Show a) => a -> Byte.ByteString
-to7Bits =
-  Byte.pack
-    . map (fromIntegral . binStrToNum . reverse)
-    . fixBinStrs
-    . map (padTo 7 . reverse)
-    . reverse
-    . breakBinStrs 7
-    . reverse
-    . padTo 7
-    . numToBinStr
+to7Bits = Byte.pack
+  . map (fromIntegral . binStrToNum . reverse)
+  . fixBinStrs
+  . map (padTo 7 . reverse)
+  . reverse
+  . breakBinStrs 7
+  . reverse
+  . padTo 7
+  . numToBinStr
 
--- |Pad a binary string to be a multiple of i bits:
+-- | Pad a binary string to be a multiple of i bits:
 padTo :: Int -> String -> String
 padTo i xs = if length xs `mod` i == 0 then xs else padTo i ('0':xs)
 
--- |Break a string into chunks of length i:
+-- | Break a string into chunks of length i:
 breakBinStrs :: Int -> String -> [String]
 breakBinStrs i s = if length s <= i then [s] else take i s : breakBinStrs i (drop i s)
 
--- |Convert a number to a binary string:
+-- | Convert a number to a binary string:
 numToBinStr :: (Integral a, Show a) => a -> String
 numToBinStr i = showIntAtBase 2 intToDigit i ""
 
--- |Convert a binary string to an integer:
+-- | Convert a binary string to an integer:
 binStrToNum :: String -> Int
 binStrToNum []       = 0
 binStrToNum ('0':xs) = 2 * binStrToNum xs
 binStrToNum ('1':xs) = 1 + 2 * binStrToNum xs
 binStrToNum _        = error "bad data."
 
--- |Append flags to a string (note, the string must be BACKWARDS):
+-- | Append flags to a string (note, the string must be BACKWARDS):
 fixBinStrs :: [String] -> [String]
-fixBinStrs xs =
-  let n = length xs
-      bits = replicate (n - 1) '1' ++ "0"
-  in  Prelude.zipWith (:) bits xs
+fixBinStrs xs = zipWith (:) bits xs where
+  n = length xs
+  bits = replicate (n - 1) '1' ++ "0"
 
--- |Pad a list from the left until it is a fixed length:
+-- | Pad a list from the left until it is a fixed length:
 pad :: Int -> a -> [a] -> [a]
 pad b x xs = if length xs >= b then xs else pad b x (x:xs)
 
--- |Messages have the following encodings:
+-- | Messages have the following encodings:
 
 -- 8x nn vv	Note Off for pitch nn at velocity vv, channel x
 -- 9x nn vv	Note On for pitch nn at velocity vv, channel x
@@ -247,27 +243,21 @@ pad b x xs = if length xs >= b then xs else pad b x (x:xs)
 -- Of these, only the end of track and tempo marker are implemented.
 
 msgToBytes :: Message -> Byte.ByteString
-msgToBytes (NoteOn c k v) =
-    Byte.concat [Byte.pack [0x90 + fromIntegral c], padByte 1 k, padByte 1 v]
-msgToBytes (NoteOff c k v) =
-    Byte.concat [Byte.pack [0x80 + fromIntegral c], padByte 1 k, padByte 1 v]
-msgToBytes (ProgramChange c p) =
-    Byte.concat [Byte.pack [0xC0 + fromIntegral c], padByte 1 p]
-msgToBytes (ControlChange c n v) =
-    Byte.concat [Byte.pack [0xB0 + fromIntegral c], padByte 1 n, padByte 1 v]
-msgToBytes (TempoChange t) = -- META EVENT, HAS NO CHANNEL NUMBER
-    Byte.concat [Byte.pack [0xFF, 0x51, 0x03], fixTempo t]
-msgToBytes x = error ("(msgToBytes) Message type not currently "++
-            "supported: "++show x)
+msgToBytes (NoteOn        c k v) = Byte.concat [Byte.pack [0x90 + fromIntegral c], padByte 1 k, padByte 1 v]
+msgToBytes (NoteOff       c k v) = Byte.concat [Byte.pack [0x80 + fromIntegral c], padByte 1 k, padByte 1 v]
+msgToBytes (ProgramChange   c p) = Byte.concat [Byte.pack [0xC0 + fromIntegral c], padByte 1 p]
+msgToBytes (ControlChange c n v) = Byte.concat [Byte.pack [0xB0 + fromIntegral c], padByte 1 n, padByte 1 v]
+msgToBytes (TempoChange       t) = Byte.concat [Byte.pack [0xFF, 0x51, 0x03], fixTempo t]  -- META EVENT, HAS NO CHANNEL NUMBER
+msgToBytes x                     = error ("(msgToBytes) Message type not currently " ++ "supported: " ++ show x)
 
 -- Fix a tempo value to be exactly 3 bytes:
 
-fixTempo =
-  Byte.pack
-    . map (fromIntegral . binStrToNum . reverse)
-    . breakBinStrs 8
-    . pad (4*6) '0'
-    . numToBinStr
+fixTempo :: Codec.Midi.Tempo -> Byte.ByteString
+fixTempo = Byte.pack
+  . map (fromIntegral . binStrToNum . reverse)
+  . breakBinStrs 8
+  . pad (4*6) '0'
+  . numToBinStr
 
 exportMidiFile :: FilePath -> Midi -> IO ()
 exportMidiFile fn = Byte.writeFile fn . makeFile

@@ -1,9 +1,8 @@
 {-# LANGUAGE ExistentialQuantification, FlexibleContexts, ScopedTypeVariables #-}
 
-module Euterpea.IO.Audio.IO (
-    outFile
+module Euterpea.IO.Audio.IO
+  ( outFile
   , outFileNorm
-  -- outFileA, outFileNormA, RecordStatus,
   , maxSample
   ) where
 
@@ -16,24 +15,13 @@ import Control.Arrow.ArrowP (ArrowP, strip)
 import Control.SF.SF (SF, unfold)
 import Euterpea.IO.Audio.Types hiding (Signal)
 
---import Data.IORef
---import Foreign.C
---import Foreign.Marshal.Array
---import Foreign.Marshal.Utils
---import Foreign.Ptr
---import Foreign.Storable
---import Control.CCA.Types
---import Control.Arrow
---import Control.Concurrent.MonadIO
---import Sound.RtAudio
-
 type Signal clk a b = ArrowP SF clk a b
 
 -- | Writes sound to a wave file (.wav)
 outFile :: forall a p. (AudioSample a, Clock p)
-  => String        -- ^ Filename to write to.
-  -> Double        -- ^ Duration of the wav in seconds.
-  -> Signal p () a -- ^ Signal representing the sound.
+  => String         -- ^ Filename to write to.
+  -> Double         -- ^ Duration of the wav in seconds.
+  -> Signal p () a  -- ^ Signal representing the sound.
   -> IO ()
 outFile = outFileHelp' id
 
@@ -46,165 +34,65 @@ normList xs = (\x -> x / max 1.0 (maximum $ abs <$> xs)) <$> xs
 -- Currently this requires storing the entire output stream in memory
 -- before writing to the file.
 outFileNorm :: forall a p. (AudioSample a, Clock p)
-  => String        -- ^ Filename to write to.
-  -> Double        -- ^ Duration of the wav in seconds.
-  -> Signal p () a -- ^ Signal representing the sound.
+  => String         -- ^ Filename to write to.
+  -> Double         -- ^ Duration of the wav in seconds.
+  -> Signal p () a  -- ^ Signal representing the sound.
   -> IO ()
 outFileNorm = outFileHelp' normList
 
 outFileHelp :: forall a p. (AudioSample a, Clock p)
-  => ([Double] -> [Double]) -- ^ Post-processing function.
-  -> String                 -- ^ Filename to write to.
-  -> Double                 -- ^ Duration of the wav in seconds.
-  -> Signal p () a          -- ^ Signal representing the sound.
+  => ([Double] -> [Double])  -- ^ Post-processing function.
+  -> String                  -- ^ Filename to write to.
+  -> Double                  -- ^ Duration of the wav in seconds.
+  -> Signal p () a           -- ^ Signal representing the sound.
   -> IO ()
-outFileHelp f filepath dur sf = exportFile filepath aud
-  where
-    sr          = rate (undefined :: p)
-    numChannels = numChans (undefined :: a)
-    numSamples  = truncate (dur * sr) * numChannels
-    dat         = map (fromSample . (*0.999))
-                      (f (toSamples dur sf)) :: [Int32]
-                  -- multiply by 0.999 to avoid wraparound at 1.0
-    array       = listArray (0, numSamples-1) dat
-    aud = Audio
-      { sampleRate    = truncate sr
-      , channelNumber = numChannels
-      , sampleData    = array
-      }
+outFileHelp f filepath dur sf = exportFile filepath aud where
+  sr          = rate (undefined :: p)
+  numChannels = numChans (undefined :: a)
+  numSamples  = truncate (dur * sr) * numChannels
+                     -- multiply by 0.999 to avoid wraparound at 1.0
+  dat         = map (fromSample . (*0.999)) (f (toSamples dur sf)) :: [Int32]
+  array       = listArray (0, numSamples-1) dat
+  aud = Audio
+    { sampleRate    = truncate sr
+    , channelNumber = numChannels
+    , sampleData    = array
+    }
 
-{-
-Alternative definition of the above that enforces a clipping behavior when
-the value exceeds the [-1.0, 1.0] range. The overflow behavior makes it
-very hard to debug sound modeling problems that involve certain waveforms,
-such as saw waves. Clipping is also a more common behavior in other audio
-software rather than overflowing or wrap-around.
--}
+-- Alternative definition of the above that enforces a clipping behavior when
+-- the value exceeds the [-1.0, 1.0] range. The overflow behavior makes it
+-- very hard to debug sound modeling problems that involve certain waveforms,
+-- such as saw waves. Clipping is also a more common behavior in other audio
+-- software rather than overflowing or wrap-around.
 
 outFileHelp' :: forall a p. (AudioSample a, Clock p)
-  => ([Double] -> [Double]) -- ^ Post-processing function.
-  -> String              -- ^ Filename to write to.
-  -> Double              -- ^ Duration of the wav in seconds.
-  -> Signal p () a       -- ^ Signal representing the sound.
+  => ([Double] -> [Double])  -- ^ Post-processing function.
+  -> String                  -- ^ Filename to write to.
+  -> Double                  -- ^ Duration of the wav in seconds.
+  -> Signal p () a           -- ^ Signal representing the sound.
   -> IO ()
-outFileHelp' f filepath dur sf = exportFile filepath aud
-  where
-    sr          = rate (undefined :: p)
-    numChannels = numChans (undefined :: a)
-    numSamples  = truncate (dur * sr) * numChannels
-    dat         = map (fromSample . (*0.999) . clipFix)
-                      (f (toSamples dur sf)) :: [Int32]
-    array       = listArray (0, numSamples-1) dat
-    aud = Audio
-      { sampleRate    = truncate sr
-      , channelNumber = numChannels
-      , sampleData    = array
-      }
-    clipFix x
-      | x > 1.0 = 1.0
-      | x < (-1.0) = -1.0
-      | otherwise = x
+outFileHelp' f filepath dur sf = exportFile filepath aud where
+  sr          = rate (undefined :: p)
+  numChannels = numChans (undefined :: a)
+  numSamples  = truncate (dur * sr) * numChannels
+  dat         = map (fromSample . (*0.999) . clipFix) (f (toSamples dur sf)) :: [Int32]
+  array       = listArray (0, numSamples-1) dat
+  aud = Audio
+    { sampleRate    = truncate sr
+    , channelNumber = numChannels
+    , sampleData    = array
+    }
+  clipFix x
+    | x > 1.0    = 1.0
+    | x < (-1.0) = -1.0
+    | otherwise  = x
 
-
-{-
-data RecordStatus = Pause | Record | Clear | Write
-
-outFileA :: forall a. AudioSample a =>
-            String               -- ^ Filename to write to.
-         -> Double               -- ^ Sample rate of the incoming signal.
-         -> UISF (a, RecordStatus) ()
-outFileA = outFileHelpA id
-
-outFileNormA :: forall a. AudioSample a =>
-                String               -- ^ Filename to write to.
-             -> Double               -- ^ Sample rate of the incoming signal.
-             -> UISF (a, RecordStatus) ()
-outFileNormA = outFileHelpA normList
-
-outFileHelpA :: forall a. AudioSample a =>
-             ([Double] -> [Double]) -- ^ Post-processing function.
-          -> String                 -- ^ Filename to write to.
-          -> Double                 -- ^ Sample rate of the incoming signal.
-          -> UISF (a, RecordStatus) ()
-outFileHelpA f filepath sr =
-  let numChannels = numChans (undefined :: a)
-      writeWavSink = sink (writeWav f filepath sr numChannels)
-  in proc (a, rs) -> do
-        rec dat <- delay [] -< dat'
-            dat' <- case rs of
-                        Pause  -> returnA -< dat
-                        Record -> returnA -< a:dat
-                        Clear  -> returnA -< []
-                        Write  -> do writeWavSink -< dat
-                                     returnA -< a:dat
-        returnA -< ()
--}
-{-
-writeWav :: AudioSample a => ([Double] -> [Double]) -> String -> Double -> Int -> [a] -> UI ()
-writeWav f filepath sr numChannels adat =
-  let dat         = map (fromSample . (*0.999))
-                        (f (concatMap collapse adat)) :: [Int32]
-                    -- multiply by 0.999 to avoid wraparound at 1.0
-      array       = listArray (0, (length dat)-1) dat
-      aud = Audio { sampleRate    = truncate sr,
-                    channelNumber = numChannels,
-                    sampleData    = array }
-  in liftIO $ exportFile filepath aud
--}
-
-
-
-
-toSamples :: forall a p. (AudioSample a, Clock p)
-  => Double -> Signal p () a -> [Double]
-toSamples dur = take numSamples . concatMap collapse . unfold . strip
-  where
-    sr          = rate     (undefined :: p)
-    numChannels = numChans (undefined :: a)
-    numSamples  = truncate (dur * sr) * numChannels
+toSamples :: forall a p. (AudioSample a, Clock p) => Double -> Signal p () a -> [Double]
+toSamples dur = take numSamples . concatMap collapse . unfold . strip where
+  sr          = rate     (undefined :: p)
+  numChannels = numChans (undefined :: a)
+  numSamples  = truncate (dur * sr) * numChannels
 
 -- | Compute the maximum sample of an SF in the first 'dur' seconds.
-maxSample :: forall a p. (AudioSample a, Clock p)
-  => Double -> Signal p () a -> Double
+maxSample :: forall a p. (AudioSample a, Clock p) => Double -> Signal p () a -> Double
 maxSample dur sf = maximum $ abs <$> toSamples dur sf
-
-{-
-chunk !nFrames !(i, f) ref buf = nFrames `seq` i `seq` f `seq` aux nFrames i
-    where aux !n !i = x `seq` i `seq` i' `seq`
-                       if n == 0 then do
-                                  writeIORef ref i
-                                  return ()
-                       else do
-                        pokeElemOff buf (fromIntegral nFrames-n) (realToFrac x)
-                        aux (n-1) i'
-              where (x, i') = f ((), i)
-{-# INLINE [0] chunk #-}
-
-chunkify !i !f !secs = do
-  --userData <- new i
-  ref <- newIORef i
-  let cb :: RtAudioCallback
-      cb oBuf iBuf nFrames nSecs status userData = do
-
-                      lastState <- readIORef ref
-                      -- Fill output buffer with nFrames of samples
-                      chunk (fromIntegral nFrames) (lastState,f) ref oBuf
-                      if secs < (realToFrac nSecs) then return 2 else return 0
-
-
-  mkAudioCallback cb
-
-
-
-playPure :: Show b => Double -> (b, ((), b) -> (Double, b)) -> IO ()
-playPure !secs !(i, f) = do
-  rtaCloseStream
-  rtaInitialize
-  dev <- rtaGetDefaultOutputDevice
-  callback <- chunkify i f secs
-  with (StreamParameters dev 1 0) (\params -> do
-         rtaOpenStream params nullPtr float64 44100 4096 callback nullPtr nullPtr)
-  rtaStartStream
-  return ()
-
--}

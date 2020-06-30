@@ -52,7 +52,6 @@
 -- (3) Greedily group any patterns with gaps between
 --     them into a sequence with rests.
 
-
 module Euterpea.IO.MIDI.FromMidi2
   ( fromMidi2
   , restructure
@@ -83,7 +82,7 @@ import Euterpea.Music
 import Codec.Midi (Midi (Midi))
 import Data.List (intercalate, sortBy)
 
--- |The primary exported functions for this module are:
+-- | The primary exported functions for this module are:
 
 fromMidi2 :: Midi -> Music (Pitch, Volume)
 fromMidi2 = restructure . fromMidi
@@ -91,80 +90,80 @@ fromMidi2 = restructure . fromMidi
 restructure :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
 restructure = parseFeaturesI
 
--- |Other exported features are related to the Chunk datatype.
+-- | Other exported features are related to the Chunk datatype.
 
 type Onset = Dur -- to clarify some type signatures
 
--- |A Chunk is the data structure used to group events by the algorithm
+-- | A Chunk is the data structure used to group events by the algorithm
 -- described at the top of this file. Par and Chord correspond to features
 -- that will be composed in parallel (:=:) at different levels, and Seq
 -- corresponds to features that will be composed in sequence (:+:). E is
 -- a wrapper for single events and R is a rest place-holder.
 data Chunk = Par [Chunk] | Seq [Chunk] | Chord [Chunk] | E MEvent | R Onset Dur
-    deriving Eq
+  deriving Eq
 
--- |Initially, each MEvent is placed in its own chunk.
+-- | Initially, each MEvent is placed in its own chunk.
 initChunk :: [MEvent] -> [Chunk]
-initChunk mevs =
-    let mevs' = sortBy sortFun mevs
-    in  map E mevs'
+initChunk mevs = map E mevs
+  where mevs' = sortBy sortFun mevs
 
--- |The chunkChord function looks for chunks that share the same
+-- | The chunkChord function looks for chunks that share the same
 -- onset and duration and places them together in Chord chunks.
 chunkChord :: [Chunk] -> [Chunk]
-chunkChord [] = []
-chunkChord (c:cs) =
-    let cChord = filter (chordWith c) cs
-        notInChord = filter (\v -> notElem v cChord) cs
-    in  if null cChord then c : chunkChord cs
-        else Chord (c:cChord) : chunkChord notInChord
+chunkChord []     = []
+chunkChord (c:cs) = if null cChord
+  then c                : chunkChord cs
+  else Chord (c:cChord) : chunkChord notInChord
+  where
+    cChord     = filter (chordWith c) cs
+    notInChord = filter (`notElem` cChord) cs
 
 chordWith :: Chunk -> Chunk -> Bool
 chordWith c0 c = chunkOnset c == chunkOnset c0 && chunkDur c == chunkDur c0
 
--- |The chunkMel function looks for sequences of chunks (which need
+-- | The chunkMel function looks for sequences of chunks (which need
 -- not be adjacent in the input list) where the end time of one chunk
 -- is equal to the start time of the next chunk. There are no gaps
 -- permitted, so notes separated by rests will not be grouped here.
 chunkMel :: [Chunk] -> [Chunk]
-chunkMel [] = []
-chunkMel x@(c:cs) =
-    let cMel = buildMelFrom (chunkOnset c) x -- get ALL possible melody elements
-        notInMel = filter (`notElem` cMel) x
-    in  if null cMel then c : chunkMel cs
-        else Seq cMel : chunkMel notInMel
+chunkMel []       = []
+chunkMel x@(c:cs) = if null cMel
+  then c        : chunkMel cs
+  else Seq cMel : chunkMel notInMel
+  where
+    cMel     = buildMelFrom (chunkOnset c) x  -- get ALL possible melody elements
+    notInMel = filter (`notElem` cMel) x
 
 buildMelFrom :: Onset -> [Chunk] -> [Chunk]
-buildMelFrom t [] = []
-buildMelFrom t (c:cs) =
-    if chunkOnset c == t then c : buildMelFrom (t + chunkDur c) cs
-    else buildMelFrom t cs
+buildMelFrom t []     = []
+buildMelFrom t (c:cs) = if chunkOnset c == t
+  then c : buildMelFrom (t + chunkDur c) cs
+  else buildMelFrom t cs
 
--- |The chunkSeqs function is more general and will look for anything
+-- | The chunkSeqs function is more general and will look for anything
 -- that can be grouped together linearly in time, even if it requires
 -- inserting a rest. This will group together all non-overlapping
 -- chunks in a greedy fashion.
 chunkSeqs :: [Chunk] -> [Chunk]
-chunkSeqs [] = []
-chunkSeqs x@(c:cs) =
-    let s = seqWithRests (chunkOnset c) x
-        notInS = filter (`notElem` s) x
-    in  if s == [c]
-          then c : chunkSeqs cs
-          else Seq s : chunkSeqs notInS
+chunkSeqs []       = []
+chunkSeqs x@(c:cs) = if s == [c]
+  then c : chunkSeqs cs
+  else Seq s : chunkSeqs notInS
+  where
+    s      = seqWithRests (chunkOnset c) x
+    notInS = filter (`notElem` s) x
 
 seqWithRests :: Onset -> [Chunk] -> [Chunk]
 seqWithRests t [] = []
-seqWithRests t x@(c:cs) =
-    let tc = chunkOnset c
-        dt = tc - t
-    in  if dt == 0
-          then c : seqWithRests (tc + chunkDur c) cs
-          else if dt > 0
-            then R t dt : c : seqWithRests (tc + chunkDur c) cs
-            else seqWithRests t cs
+seqWithRests t x@(c:cs)
+  | dt == 0   = c : seqWithRests (tc + chunkDur c) cs
+  | dt > 0    = R t dt : c : seqWithRests (tc + chunkDur c) cs
+  | otherwise = seqWithRests t cs
+  where
+    tc = chunkOnset c
+    dt = tc - t
 
--- |Finally, chunkEvents combines all of these methods in a particular
+-- | Finally, chunkEvents combines all of these methods in a particular
 -- order that establishes preference for chords first, then melodies
 -- (which may include chords), and then sequences including rests.
 -- Anything left over will be handled by an outer Par.
@@ -175,13 +174,13 @@ chunkEvents = Par . chunkSeqs . chunkMel . chunkChord . initChunk
 -- divided in half because MEvents deal with seconds, while Music
 -- deals with duration as whole notes (1 whole note = 2 seconds).
 chunkToMusic :: Chunk -> Music (Pitch, Volume)
-chunkToMusic (E e)     = note (eDur e / 2) (pitch $ ePitch e, eVol e)
-chunkToMusic (R o d)   = rest (d/2)
-chunkToMusic (Seq x)   = line(map chunkToMusic x)
+chunkToMusic (E     e) = note (eDur e / 2) (pitch $ ePitch e, eVol e)
+chunkToMusic (R   o d) = rest (d/2)
+chunkToMusic (Seq   x) = line(map chunkToMusic x)
 chunkToMusic (Chord x) = chord(map chunkToMusic x)
-chunkToMusic (Par x)   = chord $ map (\v -> rest (chunkOnset v / 2) :+: chunkToMusic v) x
+chunkToMusic (Par   x) = chord $ map (\v -> rest (chunkOnset v / 2) :+: chunkToMusic v) x
 
--- |The parseFeatures function will take an existing Music value, such
+-- | The parseFeatures function will take an existing Music value, such
 -- as one returned by fromMidi, and use the algorithms above to identify
 -- musical features (chords and melodies) and construct a new Music
 -- tree that is performance-equivalent to the original.
@@ -189,17 +188,14 @@ parseFeatures :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
 parseFeatures = removeZeros . chunkToMusic . chunkEvents . perform
 
 parseFeaturesI :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
-parseFeaturesI m = chord $ zipWith instrument iList parsesI
-  where
-    mevs = perform m
-    (iList, mevsI) = unzip $ splitByInst mevs
-    parsesI = removeZeros . chunkToMusic . chunkEvents <$> mevsI
-
--- ================
+parseFeaturesI m = chord $ zipWith instrument iList parsesI where
+  mevs           = perform m
+  (iList, mevsI) = unzip $ splitByInst mevs
+  parsesI        = removeZeros . chunkToMusic . chunkEvents <$> mevsI
 
 -- Utility Functions and Type Class Instances
 
--- |First, some functions to pretty-up printing of things for debugging purposes
+-- | First, some functions to pretty-up printing of things for debugging purposes
 
 doubleShow :: Rational -> String
 doubleShow x = show (fromRational x :: Double)
@@ -208,80 +204,51 @@ pcShow :: AbsPitch -> String
 pcShow = show . fst . pitch
 
 listShow, listShowN :: (Show a) => [a] -> String
-listShow x = "["
-                ++ intercalate ", " (show <$> x)
-                ++ "]"
-listShowN x = "[\n    "
-                ++ intercalate ",\n    " (show <$> x)
-                ++ "\n]"
+listShow  x = "[" ++ intercalate ", " (show <$> x) ++ "]"
+listShowN x = "[\n    " ++ intercalate ",\n    " (show <$> x) ++ "\n]"
 
 listShowX :: (Show a) => Int -> [a] -> String
-listShowX i x = let v = concat $ replicate i " " in
-    "[\n"
-      ++ v
-      ++ intercalate (",\n" ++ v) (show <$> x)
-      ++ "\n"
-      ++ v
-      ++ "]"
+listShowX i x = "[\n" ++ v ++ intercalate (",\n" ++ v) (show <$> x) ++ "\n" ++ v ++ "]"
+  where v = concat $ replicate i " "
 
 instance Show Chunk where
-    show (E e) = "E "
-                   ++ doubleShow (eTime e)
-                   ++ " "
-                   ++ pcShow (ePitch e)
-                   ++ " "
-                   ++ doubleShow (eDur e)
-    show s@(Seq x) = "S "
-                       ++ doubleShow (chunkOnset s)
-                       ++ " "
-                       ++ listShowX 4 x
-    show c@(Chord x) = "C "
-                         ++ doubleShow (chunkOnset c)
-                         ++ " "
-                         ++ listShowX 6 x
-    show p@(Par x) = "P "
-                       ++ doubleShow (chunkOnset p)
-                       ++ " "
-                       ++ listShowX 2 x
-    show (R o d) = "R "
-                     ++ doubleShow o
-                     ++ " "
-                     ++ doubleShow d
+  show   (E     e) = "E " ++ doubleShow (eTime e) ++ " " ++ pcShow (ePitch e) ++ " " ++ doubleShow (eDur e)
+  show s@(Seq   x) = "S " ++ doubleShow (chunkOnset s) ++ " " ++ listShowX 4 x
+  show c@(Chord x) = "C " ++ doubleShow (chunkOnset c) ++ " " ++ listShowX 6 x
+  show p@(Par   x) = "P " ++ doubleShow (chunkOnset p) ++ " " ++ listShowX 2 x
+  show   (R   o d) = "R " ++ doubleShow o ++ " " ++ doubleShow d
 
--- |An Ord instance for Chunk that enforces sorting based on onset time. No
+-- | An Ord instance for Chunk that enforces sorting based on onset time. No
 -- other features are considered.
 instance Ord Chunk where
-    compare x1 x2 = compare (chunkOnset x1) (chunkOnset x2)
+  compare x1 x2 = compare (chunkOnset x1) (chunkOnset x2)
 
 -- Functions to determine the start time (onset) and duration of a Chunk.
 
 chunkOnset :: Chunk -> Onset
-chunkOnset (Seq x)   = if null x then error "Empty Seq!"   else chunkOnset $ head x
+chunkOnset (Seq   x) = if null x then error "Empty Seq!"   else chunkOnset $ head x
 chunkOnset (Chord x) = if null x then error "Empty Chord!" else chunkOnset $ head x
-chunkOnset (Par x)   = if null x then 0                    else minimum $ chunkOnset <$> x
-chunkOnset (E e)     = eTime e
-chunkOnset (R o d)   = o
+chunkOnset (Par   x) = if null x then 0                    else minimum $ chunkOnset <$> x
+chunkOnset (E     e) = eTime e
+chunkOnset (R   o d) = o
 
 chunkEnd :: Chunk -> Onset
-chunkEnd (Seq x)   = if null x then error "Empty Seq!"   else chunkEnd $ last x
+chunkEnd (Seq   x) = if null x then error "Empty Seq!"   else chunkEnd $ last x
 chunkEnd (Chord x) = if null x then error "Empty Chord!" else chunkEnd $ head x
-chunkEnd (Par x)   = if null x then 0                    else maximum $ chunkEnd <$> x
-chunkEnd (E e)     = eTime e + eDur e
-chunkEnd (R o d)   = o + d
+chunkEnd (Par   x) = if null x then 0                    else maximum $ chunkEnd <$> x
+chunkEnd (E     e) = eTime e + eDur e
+chunkEnd (R   o d) = o + d
 
 chunkDur :: Chunk -> Dur
-chunkDur (Seq x)   = if null x then error "Empty Seq!"   else sum $ chunkDur <$> x
+chunkDur (Seq   x) = if null x then error "Empty Seq!"   else sum $ chunkDur <$> x
 chunkDur (Chord x) = if null x then error "Empty Chord!" else chunkDur (head x)
 chunkDur c@(Par x) = if null x then 0                    else chunkEnd c - chunkOnset c
-chunkDur (E e)     = eDur e
-chunkDur (R o d)   = d
+chunkDur (E     e) = eDur e
+chunkDur (R   o d) = d
 
 -- Special sorting function for MEvents.
 
 sortFun :: MEvent -> MEvent -> Ordering
-sortFun e1 e2 =
-    if eTime e1 == eTime e2 then compare (ePitch e1) (ePitch e2)
-    else compare (eTime e1) (eTime e2)
-
-
-
+sortFun e1 e2 = if eTime e1 == eTime e2
+  then compare (ePitch e1) (ePitch e2)
+  else compare (eTime e1) (eTime e2)

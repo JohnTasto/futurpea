@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c6ed62750ecff53c5be27ea781edce21c5adb92b0f8cebed6036841a9485c7d0
+-- hash: eecfd90c472410df2bb303459480e405f060d58cf86ff3eeae7cfd28340ab320
 
 name:           Euterpea
 version:        2.0.6
@@ -26,7 +26,7 @@ author:         Paul Hudak <paul.hudak@yale.edu>,
                 Eric Cheng <eric.cheng@aya.yale.edu>,
                 Hai (Paul) Liu <hai.liu@aya.yale.edu>,
                 Donya Quick <donyaquick@gmail.com>,
-                Dan Winograd-Cort <dwincort@gmail.com >
+                Dan Winograd-Cort <dwincort@gmail.com>
 maintainer:     Donya Quick <donyaquick@gmail.com>
 copyright:      Copyright (c) 2008-2017 Euterpea authors
 license:        BSD3

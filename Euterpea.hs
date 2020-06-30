@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Euterpea (
-  module Euterpea.Music,
-  module Euterpea.IO.Audio,
-  module Euterpea.IO.MIDI,
-  module Control.Arrow,
-  -- This next line is from Codec.Midi
-  exportFile, importFile
+module Euterpea
+  ( module Euterpea.Music
+  , module Euterpea.IO.Audio
+  , module Euterpea.IO.MIDI
+  , module Control.Arrow
+  , exportFile
+  , importFile
   ) where
 
 import Euterpea.Music

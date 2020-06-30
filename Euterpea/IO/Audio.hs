@@ -1,11 +1,11 @@
 module Euterpea.IO.Audio
-  ( module Euterpea.IO.Audio.BasicSigFuns,
-    module Euterpea.IO.Audio.Basics,
-    module Euterpea.IO.Audio.Types,
-    module Euterpea.IO.Audio.IO,
-    module Euterpea.IO.Audio.Render,
-    writeWav,
-    writeWavNorm
+  ( module Euterpea.IO.Audio.BasicSigFuns
+  , module Euterpea.IO.Audio.Basics
+  , module Euterpea.IO.Audio.Types
+  , module Euterpea.IO.Audio.IO
+  , module Euterpea.IO.Audio.Render
+  , writeWav
+  , writeWavNorm
   ) where
 
 import Euterpea.IO.Audio.Basics (apToHz, countDown, countUp, integral, outA, pchToHz, upsample)
@@ -71,21 +71,20 @@ import Euterpea.IO.Audio.Types
 
 import Euterpea.Music (Music, ToMusic1)
 
-writeWav :: (Clock c, ToMusic1 m1, AudioSample a)
-  => String
-  -> InstrMap (Signal c () a)
-  -> Music m1
-  -> IO ()
-writeWav fname iMap m =
-    let (d,s) = renderSF m iMap
-    in  outFile fname d s
+writeWav ::
+  (Clock c, ToMusic1 m1, AudioSample a) =>
+  String ->
+  InstrMap (Signal c () a) ->
+  Music m1 ->
+  IO ()
+writeWav fname iMap m = outFile fname d s
+  where (d,s) = renderSF m iMap
 
-writeWavNorm :: (Clock c, ToMusic1 m1, AudioSample a)
-  => String
-  -> InstrMap (Signal c () a)
-  -> Music m1
-  -> IO ()
-writeWavNorm fname iMap m =
-    let (d,s) = renderSF m iMap
-    in  outFileNorm fname d s
-
+writeWavNorm ::
+  (Clock c, ToMusic1 m1, AudioSample a) =>
+  String ->
+  InstrMap (Signal c () a) ->
+  Music m1 ->
+  IO ()
+writeWavNorm fname iMap m = outFileNorm fname d s
+  where (d,s) = renderSF m iMap
