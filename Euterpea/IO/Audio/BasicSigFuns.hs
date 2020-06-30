@@ -124,7 +124,7 @@ funToTable f normalize size = Table size (listArray (0, size) zs) normalize wher
 
 readFromTable :: Table -> Double -> Double
 readFromTable (Table sz array _) pos = array `unsafeAt` idx where
-  idx = truncate (fromIntegral sz * pos)  -- range must be [0,size]
+  idx = truncate (fromIntegral sz * pos)  -- range must be [0, sz]
 {-# INLINE [0] readFromTable #-}
 
 readFromTableA :: Arrow a => Table -> a Double Double
@@ -136,7 +136,7 @@ readFromTableRaw (Table _ a _) idx = a `unsafeAt` idx
 -- | Like readFromTable, but with linear interpolation.
 readFromTablei :: Table -> Double -> Double
 readFromTablei (Table sz array _) pos = val0 + (val1 - val0) * (idx - fromIntegral idx0) where
-  idx  = fromIntegral sz * pos  -- fractional "index" in table ([0,sz])
+  idx  = fromIntegral sz * pos  -- fractional "index" in table ([0, sz])
   idx0 = truncate idx `mod` sz :: Int
   idx1 = idx0 + 1              :: Int
   val0 = array `unsafeAt` idx0
@@ -275,8 +275,8 @@ oscDur_ osc table@(Table sz _ _) del dur = proc () -> do
 -- These are not implemented.
 
 foscil, foscili :: (Clock p, Arrow a) => Table -> ArrowP a p (Double, Double, Double, Double) Double
-foscil  table = proc (freq,carfreq,modfreq,modindex) -> outA -< 0
-foscili table = proc (freq,carfreq,modfreq,modindex) -> outA -< 0
+foscil  table = proc (freq, carfreq, modfreq, modindex) -> outA -< 0
+foscili table = proc (freq, carfreq, modfreq, modindex) -> outA -< 0
 
 loscil :: (Clock p, Arrow a) => Table -> ArrowP a p Double Double
 loscil table = proc freq -> outA -< 0
@@ -416,7 +416,7 @@ delayLine maxdel = proc x -> do
 -- delay line with one tap.
 
 delayLine1 :: forall p. Clock p => Double -> Signal p (Double, Double) Double
-delayLine1 maxdel = proc (sig,dlt) -> do
+delayLine1 maxdel = proc (sig, dlt) -> do
   rec
     let i'     = if i == sz-1 then 0 else i+1
         dl     = min maxdel dlt
@@ -459,7 +459,7 @@ delay4 maxdel = proc (sig, dlt1, dlt2, dlt3, dlt4) -> outA -< 0
 noiseWhite :: Int -> Signal p () Double
 noiseWhite seed = proc () -> do
   rec
-    let (a,g') = random g :: (Double, StdGen)
+    let (a, g') = random g :: (Double, StdGen)
     g <- delay gen -< g'
   outA -< a * 2 - 1
   where gen = mkStdGen seed
@@ -688,7 +688,7 @@ filterBandStopBW = proc (sig, freq, band) -> butter -< (sig, bbrset freq band sr
 
 -- Helper function for various Butterworth filters.
 
-butter :: Clock p => Signal p (Double,ButterData) Double
+butter :: Clock p => Signal p (Double, ButterData) Double
 butter = proc (sig, ButterData a1 a2 a3 a4 a5) -> do
   rec
     let t = sig - a4 * y' - a5 * y''
@@ -731,7 +731,7 @@ filterComb looptime = proc (sig, rvt) -> do
 
 -- Analogous to csound's tone routine.
 
-filterLowPass :: forall p. Clock p => Signal p (Double,Double) Double
+filterLowPass :: forall p. Clock p => Signal p (Double, Double) Double
 filterLowPass = proc (sig, hp) -> do
   rec
     let y' = c1 * sig + c2 * y
@@ -750,7 +750,7 @@ filterLowPass = proc (sig, hp) -> do
 -- parallel matching 'filterLowPass' and 'filterHighPass', would under
 -- addition simply reconstruct the original spectrum.
 
-filterHighPass :: Clock p => Signal p (Double,Double) Double
+filterHighPass :: Clock p => Signal p (Double, Double) Double
 filterHighPass = proc (sig, hp) -> do
   y <- filterLowPass -< (sig, hp)
   outA -< sig - y
@@ -806,7 +806,7 @@ seghlp :: forall p. Clock p
   => [Double]  -- List of points to trace through.
   -> [Double]  -- List of durations for each line segment.
                -- Needs to be one element fewer than 'iamps'.
-  -> Signal p () (Double,Double,Double,Double)
+  -> Signal p () (Double, Double, Double, Double)
 -- TODO: this is better defined using 'integral', but which is faster?
 seghlp iamps idurs = proc _ -> do
   rec
@@ -818,7 +818,7 @@ seghlp iamps idurs = proc _ -> do
   let a1 = aAt amps i
       a2 = aAt amps (i+1)
       d  = aAt durs i
-  outA -< (a1,a2,t,d)
+  outA -< (a1, a2, t, d)
   where
     sr   = rate (undefined :: p)
     sz   = length iamps
@@ -833,7 +833,7 @@ envLineSeg :: Clock p
                -- Needs to be one element fewer than 'amps'.
   -> Signal p () Double
 envLineSeg amps durs = proc () -> do
-  (a1,a2,t,d) <- sf -< ()
+  (a1, a2, t, d) <- sf -< ()
   outA -< a1 + (a2-a1) * (t / d)
   where sf = seghlp amps durs
 
@@ -845,7 +845,7 @@ envExponSeg :: Clock p
                -- Needs to be one element fewer than 'amps'.
   -> Signal p () Double
 envExponSeg ampinps durs = proc () -> do
-  (a1,a2,t,d) <- sf -< ()
+  (a1, a2, t, d) <- sf -< ()
   outA -< a1 * pow (a2/a1) (t / d)
   where
     amps' = case ampinps of
@@ -947,7 +947,7 @@ tableExponN ::
      TableSize
      -- The size of the table to be produced.
   -> StartPt
-     -- The y-coordinate for the start point, (0,y).
+     -- The y-coordinate for the start point, (0, y).
   -> [(SegLength, EndPt)]
      -- Pairs of segment lengths and y-coordinates. The segment
      -- lengths are the projection along the x-axis. The first
@@ -968,7 +968,7 @@ tableLinearN ::
      TableSize
      -- The size of the table to be produced.
   -> StartPt
-     -- The y-coordinate for the start point, (0,y).
+     -- The y-coordinate for the start point, (0, y).
   -> [(SegLength, EndPt)]
      -- Pairs of segment lengths and y-coordinates. The segment
      -- lengths are the projection along the x-axis. The first
@@ -992,8 +992,8 @@ tableSines3N ::
      TableSize
      -- The size of the table to be produced.
   -> [(PartialNum, PartialStrength, PhaseOffset)]
-     -- List of triples of the partial (0,1,...), partial
-     -- strength on [0,1], and phase delay on [0,360].
+     -- List of triples of the partial (0, 1, ...), partial
+     -- strength on [0, 1], and phase delay on [0, 360].
   -> Table
 tableSines3N size ps = tableSines3_ ps True size
 
@@ -1051,7 +1051,7 @@ normalizeSegs segs = map (\(x, y) -> (x*fact, y)) segs where
 
 interpLine ::
      StartPt
-     -- The y-coordinate for the start point (0,y).
+     -- The y-coordinate for the start point (0, y).
   -> [(SegLength, EndPt)]
      -- Pairs of segment lengths (projected on the x-axis)
      -- and y-coordinates (end points).
@@ -1062,16 +1062,16 @@ interpLine ::
      -- corresponding f(x)=y.
   -> Double
 interpLine sp []     d f = 0  -- catchall case
-interpLine sp points f d = f (0,sp) (normalizeSegs points) d
+interpLine sp points f d = f (0, sp) (normalizeSegs points) d
 
 -- The exponential interpolation function stretches e^x between two
 -- endpoints for each pair of points.
 
 interpExpLine ::
      (Double, StartPt)
-     -- The startpoing as (x,y)
+     -- The startpoing as (x, y)
   -> [(SegLength, EndPt)]
-     -- A list of line segments with (x',y) where x' is
+     -- A list of line segments with (x', y) where x' is
      -- a length projected on the x-axis
   -> Double
      -- The target x-coordinate to find a corresponding
@@ -1088,9 +1088,9 @@ interpExpLine (s1, e1) ((s2, e2) : t) d
 
 interpStraightLine ::
      (Double, StartPt)
-     -- The startpoing as (x,y)
+     -- The startpoing as (x, y)
   -> [(SegLength, EndPt)]
-     -- A list of line segments with (x',y) where x' is
+     -- A list of line segments with (x', y) where x' is
      -- a length projected on the x-axis
   -> Double
      -- The target x-coordinate to find a corresponding
@@ -1109,22 +1109,22 @@ interpStraightLine (s1, e1) ((s2, e2) : t) d
 
 makeSineFun ::
      (PartialNum, PartialStrength, PhaseOffset)
-     -- Triple of the partial (0,1,...), partial strength
-     -- on [0,1], and phase delay on [0,360].
+     -- Triple of the partial (0, 1, ...), partial strength
+     -- on [0, 1], and phase delay on [0, 360].
   -> Double
      -- The x coordinate for which to find f(x)=y
   -> Double
 makeSineFun (pNum, pStrength, pOffset) x = pStrength * sin (x' * pNum + po) where
-  x' = x * 2 * pi              -- convert [0,1] to [0,pi] radians
-  po = (pOffset/360) * 2 * pi  -- convert [0,360] to [0,pi] radians
+  x' = x * 2 * pi              -- convert [0, 1] to [0, pi] radians
+  po = (pOffset/360) * 2 * pi  -- convert [0, 360] to [0, pi] radians
 
 -- For a particular point, sum all partials.
 
 makeCompositeSineFun ::
      [(PartialNum, PartialStrength, PhaseOffset)]
-     -- List of triples of the partial (0,1,...),
-     -- partial strength on [0,1], and phase delay
-     -- on [0,360].
+     -- List of triples of the partial (0, 1, ...),
+     -- partial strength on [0, 1], and phase delay
+     -- on [0, 360].
   -> Double
      -- The x coordinate for which to find f(x)=y
   -> Double
@@ -1156,5 +1156,5 @@ countTime n t = proc _ -> do
   e <- t -< ()
   rec
     i <- delay 0 -< maybe i' (const $ i'+1) e
-    let (i',o) = if i == n then (0, Just ()) else (i, Nothing)
+    let (i', o) = if i == n then (0, Just ()) else (i, Nothing)
   outA -< o

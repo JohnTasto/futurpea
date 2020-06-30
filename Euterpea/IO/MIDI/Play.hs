@@ -128,7 +128,7 @@ playInf p m = handleCtrlC $ do
 resolveOutDev :: Maybe OutputDeviceID -> IO OutputDeviceID
 resolveOutDev Nothing  = do
   outDevM <- getDefaultOutputDeviceID
-  (ins,outs) <- getAllDevices
+  (ins, outs) <- getAllDevices
   let allOutDevs = map fst outs
   let outDev = case outDevM of
         Nothing -> if null allOutDevs
@@ -205,11 +205,11 @@ musicToMsgs' p m =
 
     -- Converts ANotes into a sorted list of On/Off events
     stdMerge :: [(Time, MidiMessage)] -> [(Time, MidiMessage)]
-    stdMerge []                     = []
-    stdMerge ((t,ANote c k v d):es) =
+    stdMerge []                      = []
+    stdMerge ((t, ANote c k v d):es) =
       (t, Std $ NoteOn c k v) :
       stdMerge (insertBy (\(a, b) (x, y) -> compare a x) (t+d, Std $ NoteOff c k v) es)
-    stdMerge (e1               :es) = e1 : stdMerge es
+    stdMerge (e1                :es) = e1 : stdMerge es
 
     -- Performs instrument assignment for a list of Events
     channelMap :: ChannelMapFun -> ChannelMap -> [MEvent] -> [(Time, MidiMessage)]
@@ -235,7 +235,7 @@ type NumChannels = Int  -- maximum number of channels (i.e. 0-15 is 16 channels)
 type PercChan    = Int  -- percussion channel, using indexing from zero
 
 linearCP :: NumChannels -> PercChan -> ChannelMapFun
-linearCP cLim pChan i cMap = if i == Percussion then (pChan, (i,pChan):cMap) else
+linearCP cLim pChan i cMap = if i == Percussion then (pChan, (i, pChan):cMap) else
   let n       = length $ filter ((/= Percussion) . fst) cMap
       newChan = if n >= pChan then n+1 else n  -- step over the percussion channel
   in  if newChan < cLim

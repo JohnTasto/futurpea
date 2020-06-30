@@ -159,12 +159,12 @@ rand s = proc a -> do
   outA -< o*a
 
 randi :: Clock p => Int -> ArrowP SF p (Double, Double) Double
-randi s = proc (a,f) -> do
+randi s = proc (a, f) -> do
   o <- noiseBLI s -< f
   outA -< o*a
 
 randh :: Clock p => Int -> ArrowP SF p (Double, Double) Double
-randh s = proc (a,f) -> do
+randh s = proc (a, f) -> do
   o <- noiseBLH s -< f
   outA -< o*a
 

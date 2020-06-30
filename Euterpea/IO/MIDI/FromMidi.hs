@@ -113,8 +113,8 @@ midiToEvents m = distributeTempos $ map (map (applyTD $ timeDiv m)) ts
   where ts = simplifyTrack 0 . addTrackTicks 0 <$> tracks m
 
 simplifyTrack :: Int -> [(Ticks, Message)] -> [SimpleMsg]
-simplifyTrack icur []         = []
-simplifyTrack icur ((t,m):ts) = case m of
+simplifyTrack icur []            = []
+simplifyTrack icur ((t, m) : ts) = case m of
   (NoteOn      c p v) -> SE (fromIntegral t, p, v, icur, On ) : simplifyTrack icur ts
   (NoteOff     c p v) -> SE (fromIntegral t, p, v, icur, Off) : simplifyTrack icur ts
   (ProgramChange c p) -> simplifyTrack (if c == 9 then (- 1) else p) ts
@@ -132,7 +132,7 @@ distributeTempos tracks = if length tracks > 1
 
 
 -- The eventsToMusic function will convert a list of lists of SimpleMsgs
--- (output from midiToEvents) to a Music(Pitch,Volume) structure. All
+-- (output from midiToEvents) to a Music (Pitch, Volume) structure. All
 -- notes will be connected together using the (:=:) constructor. For
 -- example, the first line of "Frere Jaque", which would normally be
 -- written as:

@@ -238,7 +238,7 @@ pad b x xs = if length xs >= b then xs else pad b x (x:xs)
 -- FF 2F 00			END OF TRACK MARKER
 -- FF 51 03 tttttt		Tempo change marker, where tttttt is the microseconds per qn
 -- FF 48 04 nnddccbb	Time signature nn/dd with cc ticks per beat and bb 32nds/qn
--- FF 59 02 sfmi		Key signature with sf sharps/flats and mi mode in {0,1}
+-- FF 59 02 sfmi		Key signature with sf sharps/flats and mi mode in {0, 1}
 
 -- Of these, only the end of track and tempo marker are implemented.
 

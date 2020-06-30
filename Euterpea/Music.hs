@@ -3,8 +3,6 @@
 module Euterpea.Music where
 
 import Control.Lens (both, over)
-import Data.Bifunctor (bimap)
-import Prelude
 
 type AbsPitch = Int
 type Octave   = Int
@@ -133,7 +131,7 @@ data NoteHead
 
 type Volume = Int
 
-addVolume :: Volume -> Music Pitch -> Music (Pitch,Volume)
+addVolume :: Volume -> Music Pitch -> Music (Pitch, Volume)
 addVolume v = mMap (\p -> (p, v))
 
 data NoteAttribute
@@ -236,15 +234,15 @@ ddqn = 7/16;  ddqnr = rest ddqn -- double-dotted quarter note rest
 dden = 7/32;  ddenr = rest dden -- double-dotted eighth note rest
 
 -- | The conversion for Pitch and AbsPitch differs from previous versions
--- of Euterpea. In Euterpea 1.x, (C,5) was pitch number 60, which is not
+-- of Euterpea. In Euterpea 1.x, (C, 5) was pitch number 60, which is not
 -- the most common interpretation. While there is no universal standard
 -- for which octave should be octave 0, it is far more common to have the
--- pitch number relationship that (C,4) = 60. Since this change has been
+-- pitch number relationship that (C, 4) = 60. Since this change has been
 -- requested many times in previous versions of Euterpea, the following
 -- standard is now in place as of version 2.0.0:
--- >>> pitch 0 = (C,-1)
--- >>> pitch 60 = (C,4)
--- >>> pitch 127 = (G,9)
+-- >>> pitch 0 = (C, -1)
+-- >>> pitch 60 = (C, 4)
+-- >>> pitch 127 = (G, 9)
 absPitch :: Pitch -> AbsPitch
 absPitch (pc, oct) = 12*(oct+1) + pcToInt pc
 
@@ -304,7 +302,7 @@ invert m = if null pRef
     pFun (Note d p) = [p]
     pFun _          = []
 
-invert1 :: Music (Pitch,a) -> Music (Pitch,a)
+invert1 :: Music (Pitch, a) -> Music (Pitch, a)
 invert1 m = if null pRef
   then m  -- no pitches!
   else invertAt1 (head pRef) m
@@ -381,7 +379,7 @@ durL :: Music a -> LazyDur
 durL m@(Prim _)           = [dur m]
 durL (m1 :+: m2)          = d1 ++ map (+ last d1) (durL m2) where d1 = durL m1
 durL (m1 :=: m2)          = mergeLD (durL m1) (durL m2)
-durL (Modify (Tempo r) m) = map (/r) (durL m)
+durL (Modify (Tempo r) m) = map (/ r) (durL m)
 durL (Modify _         m) = durL m
 
 mergeLD :: LazyDur -> LazyDur -> LazyDur

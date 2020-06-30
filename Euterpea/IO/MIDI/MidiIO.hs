@@ -124,8 +124,8 @@ getAllDevices = do
   n           <- countDevices
   deviceInfos <- mapM getDeviceInfo [0..n-1]
   let devs = zip [0..n-1] deviceInfos
-  return ( [ (InputDeviceID  d, i) | (d,i) <- devs, input  i]
-         , [ (OutputDeviceID d, i) | (d,i) <- devs, output i]
+  return ( [ (InputDeviceID  d, i) | (d, i) <- devs, input  i]
+         , [ (OutputDeviceID d, i) | (d, i) <- devs, output i]
          )
 
 
@@ -165,8 +165,8 @@ defaultInput f a = do
 data PrioChannel a b = PrioChannel
   { get  :: IO (Heap.MinPrioHeap a b)
   , push :: a -> b -> IO ()
-  , pop  :: IO (a,b)
-  , peek :: IO (Maybe (a,b))
+  , pop  :: IO (a, b)
+  , peek :: IO (Maybe (a, b))
   }
 
 makePriorityChannel :: IO (PrioChannel Time Message)
@@ -266,7 +266,7 @@ getOutDev devId = do
       x <- midiOutRealTime' devId       -- Changes made by Donya Quick: this line used to pattern match against Just.
       pChan <- makePriorityChannel
       case x of                         -- Case statement added.
-        Just (mout,stop) -> do
+        Just (mout, stop) -> do
           modifyIORef outDevMap ((devId, (pChan, mout, stop)) :)
           return (pChan, mout, stop)
         Nothing -> return (pChan, const (return ()), return ()) -- Nothing case added
@@ -351,7 +351,7 @@ deliverMidiEvent devId (t, m) = do
   (pChan, out, _stop) <- getOutDev devId
   now                 <- getTimeNow
   let deliver t m = if t == 0
-        then out (now,m)
+        then out (now, m)
         else push pChan (now+t) m
   case m of
     Std m         -> deliver t m
@@ -370,7 +370,7 @@ outputMidi devId = do
         r <- peek pChan
         case r of
           Nothing    -> return ()
-          Just (t,m) -> do
+          Just (t, m) -> do
             now <- getTimeNow
             when (t <= now) $ do
               out (now, m)
@@ -537,7 +537,7 @@ midiEvent (ControlChange   c cn cv) = Just $ PMMsg (176 .|. (fromIntegral c .&. 
 midiEvent (ProgramChange   c pn   ) = Just $ PMMsg (192 .|. (fromIntegral c .&. 0xF)) (fromIntegral pn) 0
 midiEvent (ChannelPressure c pr   ) = Just $ PMMsg (208 .|. (fromIntegral c .&. 0xF)) (fromIntegral pr) 0
 midiEvent (PitchWheel      c pb   ) = Just $ PMMsg (224 .|. (fromIntegral c .&. 0xF)) (fromIntegral lo) (fromIntegral hi)
-  where (hi,lo) = (pb `shiftR` 8, pb .&. 0xFF)
+  where (hi, lo) = (pb `shiftR` 8, pb .&. 0xFF)
 midiEvent _                         = Nothing
 
 

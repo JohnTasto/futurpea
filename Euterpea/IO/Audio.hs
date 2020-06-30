@@ -78,7 +78,7 @@ writeWav ::
   Music m1 ->
   IO ()
 writeWav fname iMap m = outFile fname d s
-  where (d,s) = renderSF m iMap
+  where (d, s) = renderSF m iMap
 
 writeWavNorm ::
   (Clock c, ToMusic1 m1, AudioSample a) =>
@@ -87,4 +87,4 @@ writeWavNorm ::
   Music m1 ->
   IO ()
 writeWavNorm fname iMap m = outFileNorm fname d s
-  where (d,s) = renderSF m iMap
+  where (d, s) = renderSF m iMap

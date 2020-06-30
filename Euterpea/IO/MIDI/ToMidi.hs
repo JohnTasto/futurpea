@@ -68,13 +68,13 @@ defST = 500000
 
 mevsToMessages :: UserPatchMap -> (InstrumentName, [MEvent]) -> [MidiEvent]
 mevsToMessages upm (inm, pf) = setupInst : setTempo : loop pf where
-  (chan,progNum) = upmLookup upm inm
-  setupInst      = (0, ProgramChange chan progNum)
-  setTempo       = (0, TempoChange defST)
-  loop []        = []
-  loop (e:es)    = mev1 : insertMEvent mev2 (loop es) where (mev1,mev2) = mkMEvents chan e
+  (chan, progNum) = upmLookup upm inm
+  setupInst       = (0, ProgramChange chan progNum)
+  setTempo        = (0, TempoChange defST)
+  loop []         = []
+  loop (e:es)     = mev1 : insertMEvent mev2 (loop es) where (mev1, mev2) = mkMEvents chan e
 
-mkMEvents :: Channel -> MEvent -> (MidiEvent,MidiEvent)
+mkMEvents :: Channel -> MEvent -> (MidiEvent, MidiEvent)
 mkMEvents mChan MEvent {eTime = t, ePitch = p, eDur = d, eVol = v} =
   ((toDelta t, NoteOn mChan p v'), (toDelta (t + d), NoteOff mChan p v')) where
   v'        = max 0 (min 127 (fromIntegral v))

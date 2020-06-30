@@ -11,7 +11,7 @@ data MEvent = MEvent
   , eDur    :: DurT            -- note duration
   , eVol    :: Volume          -- volume
   , eParams :: [Double]        -- optional other parameters
-  } deriving (Show,Eq,Ord)
+  } deriving (Show, Eq, Ord)
 
 type Performance = [MEvent]
 
@@ -99,16 +99,16 @@ phraseToMEvents c@MContext{mcTime=t, mcInst=i, mcDur=dt} (pa:pas) m = case pa of
   Art _               -> pfd  -- not supported
   Orn _               -> pfd  -- not supported
   where
-    pfd@(pf,dur) = phraseToMEvents c pas m
-    loud x       = phraseToMEvents c (Dyn (Loudness x) : pas) m
-    stretch x    = (map upd pf, (1+x)*dur) where
+    pfd@(pf, dur) = phraseToMEvents c pas m
+    loud x        = phraseToMEvents c (Dyn (Loudness x) : pas) m
+    stretch x     = (map upd pf, (1+x)*dur) where
       t0                                 = eTime (head pf)
       r                                  = x/dur
       upd e@MEvent {eTime = t, eDur = d} = e {eTime = t', eDur = d'} where
         dt = t-t0
         t' = (1+dt*r)*dt + t0
         d' = (1+(2*dt+d)*r)*d
-    inflate x    = (map upd pf, dur) where
+    inflate x     = (map upd pf, dur) where
       t0                                 = eTime (head pf)
       r                                  = x/dur
       upd e@MEvent {eTime = t, eVol = v} = e {eVol = round ((1+(t-t0)*r) * fromIntegral v)}
