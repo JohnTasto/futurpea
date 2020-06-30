@@ -34,47 +34,45 @@ bug-reports: https://github.com/Euterpea/Euterpea2/issues
 stability: experimental
 
 ghc-options:
-  - -O2
-  - -funbox-strict-fields
   - -fexcess-precision
+  - -funbox-strict-fields
+  - -O2
 
 dependencies:
-  - base
   - arrows
   - array
-  - deepseq
-  - random
-  - PortMidi
-  - HCodecs
-  - stm
-  - containers
+  - base
   - bytestring
+  - containers
+  - deepseq
+  - HCodecs
   - heap
-  - ghc-prim
-  - QuickCheck
   - lens
+  - PortMidi
+  - random
+  - stm
 
 library:
   source-dirs: ./.
   exposed-modules:
-  - Euterpea
-  - Euterpea.Music
   - Control.Arrow.ArrowP
   - Control.SF.SF
+  - Euterpea
+  - Euterpea.Music
+  - Euterpea.IO.Audio
   - Euterpea.IO.Audio.Basics
   - Euterpea.IO.Audio.BasicSigFuns
+  - Euterpea.IO.Audio.CSound
   - Euterpea.IO.Audio.IO
   - Euterpea.IO.Audio.Render
   - Euterpea.IO.Audio.Types
-  - Euterpea.IO.Audio.CSound
-  - Euterpea.IO.Audio
-  - Euterpea.IO.MIDI.MEvent
-  - Euterpea.IO.MIDI.MidiIO
+  - Euterpea.IO.MIDI
+  - Euterpea.IO.MIDI.ExportMidiFile
   - Euterpea.IO.MIDI.FromMidi
   - Euterpea.IO.MIDI.FromMidi2
   - Euterpea.IO.MIDI.GeneralMidi
+  - Euterpea.IO.MIDI.MEvent
+  - Euterpea.IO.MIDI.MidiIO
+  - Euterpea.IO.MIDI.Play
   - Euterpea.IO.MIDI.ToMidi
   - Euterpea.IO.MIDI.ToMidi2
-  - Euterpea.IO.MIDI.Play
-  - Euterpea.IO.MIDI.ExportMidiFile
-  - Euterpea.IO.MIDI

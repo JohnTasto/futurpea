@@ -12,12 +12,12 @@ packages:
   original:
     hackage: arrows-0.4.4.2
 - completed:
-    hackage: Stream-0.4.7.2@sha256:ed78165aa34c4e23dc53c9072f8715d414a585037f2145ea0eb2b38300354c53,1009
+    hackage: HCodecs-0.5.2@sha256:3d49e1c9e93e95d391955c76922c7e9634c7c3b5f53eb31fe6733b7301bf1bc0,1740
     pantry-tree:
-      size: 207
-      sha256: 009fe33c4779bd1705a26f9b036f0996e9fc85df06418aec3dda967554e6ef83
+      size: 678
+      sha256: c40c03969be98006d0f38de76c77d9118aab299fc4061e830b6ece9ced514d3d
   original:
-    hackage: Stream-0.4.7.2
+    hackage: HCodecs-0.5.2
 - completed:
     hackage: lazysmallcheck-0.6@sha256:dac7a1e4877681f1260309e863e896674dd6efc1159897b7945893e693f2a6bc,1696
     pantry-tree:
@@ -26,22 +26,22 @@ packages:
   original:
     hackage: lazysmallcheck-0.6
 - completed:
-    hackage: HCodecs-0.5.1@sha256:bf99063ca71d5fc6ed560be853457517ca7c670a06c21c89da6c33196b4d6a42,1654
-    pantry-tree:
-      size: 678
-      sha256: 5543da15343ec505acbd1a08ea8d80a740c386033e2fa1faa38716dcfd028b6e
-  original:
-    hackage: HCodecs-0.5.1
-- completed:
     hackage: PortMidi-0.1.6.1@sha256:27c6d3abd251c6bd75016fe782a74bc41e49ec7cd03288cfac4b8fa17dc307e6,2258
     pantry-tree:
       size: 1817
       sha256: a412c2550ac470d6466f557ae2024db07d475bfafb9fe0061c7fd1c1e689d177
   original:
     hackage: PortMidi-0.1.6.1
+- completed:
+    hackage: Stream-0.4.7.2@sha256:ed78165aa34c4e23dc53c9072f8715d414a585037f2145ea0eb2b38300354c53,1009
+    pantry-tree:
+      size: 207
+      sha256: 009fe33c4779bd1705a26f9b036f0996e9fc85df06418aec3dda967554e6ef83
+  original:
+    hackage: Stream-0.4.7.2
 snapshots:
 - completed:
-    size: 496635
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/13/12.yaml
-    sha256: 67b74d6acad1342ba8089b75f415c1c63897e3f32091863c921104e8d0bdcfa0
-  original: lts-13.12
+    size: 531696
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/3.yaml
+    sha256: 65e3a94c65ad07fa1913649e3f1e36c4af51bf528a5d9fd217bdc1b46d0477cc
+  original: lts-16.3
