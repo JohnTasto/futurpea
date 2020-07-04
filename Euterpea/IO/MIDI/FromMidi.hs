@@ -21,7 +21,6 @@ import Euterpea.Music
   , Volume
   , chord
   , instrument
-  , mMap
   , note
   , pitch
   , rest
@@ -250,7 +249,7 @@ correctOff (SE (t, p, v, i, e)) es = SE (t', p, v, i, Off) where
 -- | The 'fromMidi' function wraps the combination of midiToEvents and
 -- eventsToMusic and performs the final conversion to Music1.
 fromMidi :: Midi -> Music1
-fromMidi m = mMap (\(p, v) -> (p, [Volume v])) $ eventsToMusic seList where
+fromMidi m = fmap (\(p, v) -> (p, [Volume v])) $ eventsToMusic seList where
   seList = midiToEvents m
   iNums  = filter (> 0) $ getInstrument <$> seList
   upm    = makeUPM $ toEnum <$> iNums

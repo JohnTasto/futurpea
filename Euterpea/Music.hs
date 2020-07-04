@@ -30,12 +30,12 @@ data Music a
 infixr 5 :+:, :=:
 
 data Control
-  = Tempo       Rational           -- ^ scale the tempo
-  | Transpose   AbsPitch           -- ^ transposition
-  | Instrument  InstrumentName     -- ^ instrument label
-  | Phrase      [PhraseAttribute]  -- ^ phrase attributes
-  | KeySig      PitchClass Mode    -- ^ key signature and mode
-  | Custom      String             -- ^ for user-specified controls
+  = Tempo      Rational           -- ^ scale the tempo
+  | Transpose  AbsPitch           -- ^ transposition
+  | Instrument InstrumentName     -- ^ instrument label
+  | Phrase     [PhraseAttribute]  -- ^ phrase attributes
+  | KeySig     PitchClass Mode    -- ^ key signature and mode
+  | Custom     String             -- ^ for user-specified controls
   deriving (Show, Eq, Ord)
 
 data Mode
@@ -132,7 +132,7 @@ data NoteHead
 type Volume = Int
 
 addVolume :: Volume -> Music Pitch -> Music (Pitch, Volume)
-addVolume v = mMap (\p -> (p, v))
+addVolume v = fmap (\p -> (p, v))
 
 data NoteAttribute
   = Volume Int        -- ^ MIDI convention: 0=min, 127=max
@@ -151,19 +151,19 @@ class ToMusic1 a where
   toMusic1 :: Music a -> Music1
 
 instance ToMusic1 Pitch where
-  toMusic1 = mMap (\p -> (p, []))
+  toMusic1 = fmap (\p -> (p, []))
 
 instance ToMusic1 (Pitch, Volume) where
-  toMusic1  = mMap (\(p, v) -> (p, [Volume v]))
+  toMusic1 = fmap (\(p, v) -> (p, [Volume v]))
 
 instance ToMusic1 Note1 where
   toMusic1 = id
 
 instance ToMusic1 AbsPitch where
-  toMusic1 = mMap (\a -> (pitch a, []))
+  toMusic1 = fmap (\a -> (pitch a, []))
 
 instance ToMusic1 (AbsPitch, Volume) where
-  toMusic1 = mMap (\(p, v) -> (pitch p, [Volume v]))
+  toMusic1 = fmap (\(p, v) -> (pitch p, [Volume v]))
 
 note :: Dur -> a -> Music a
 note d p = Prim $ Note d p
@@ -288,10 +288,10 @@ lineToList _               =
   error "lineToList: argument not created by function line"
 
 invertAt :: Pitch -> Music Pitch -> Music Pitch
-invertAt pRef = mMap (\p -> pitch (2 * absPitch pRef - absPitch p))
+invertAt pRef = fmap (\p -> pitch (2 * absPitch pRef - absPitch p))
 
 invertAt1 :: Pitch -> Music (Pitch, a) -> Music (Pitch, a)
-invertAt1 pRef = mMap (\(p, x) -> (pitch (2 * absPitch pRef - absPitch p), x))
+invertAt1 pRef = fmap (\(p, x) -> (pitch (2 * absPitch pRef - absPitch p), x))
 
 invert :: Music Pitch -> Music Pitch
 invert m = if null pRef
@@ -323,7 +323,7 @@ retro (m1 :=: m2)  = if d1 > d2
     d2 = dur m2
 
 retroInvert, invertRetro :: Music Pitch -> Music Pitch
-retroInvert = retro  . invert
+retroInvert = retro . invert
 invertRetro = invert . retro
 
 dur :: Music a -> Dur
@@ -336,24 +336,19 @@ dur (Modify _ m)         = dur m
 
 cut :: Dur -> Music a -> Music a
 cut d m | d <= 0           = rest 0
-cut d (Prim (Note oldD p)) = note (min oldD d) p
-cut d (Prim (Rest oldD))   = rest (min oldD d)
+cut d (Prim (Note nd p))   = note (min nd d) p
+cut d (Prim (Rest rd))     = rest (min rd d)
+cut d (m1 :+: m2)          = m1' :+: cut (d - dur m1') m2 where m1' = cut d m1
 cut d (m1 :=: m2)          = cut d m1 :=: cut d m2
-cut d (m1 :+: m2)          = m'1 :+: m'2 where
-  m'1 = cut d m1
-  m'2 = cut (d - dur m'1) m2
 cut d (Modify (Tempo r) m) = tempo r (cut (d*r) m)
 cut d (Modify c m)         = Modify c (cut d m)
 
-
 remove :: Dur -> Music a -> Music a
 remove d m | d <= 0           = m
-remove d (Prim (Note oldD p)) = note (max (oldD-d) 0) p
-remove d (Prim (Rest oldD))   = rest (max (oldD-d) 0)
+remove d (Prim (Note nd p))   = note (max (nd-d) 0) p
+remove d (Prim (Rest rd))     = rest (max (rd-d) 0)
 remove d (m1 :=: m2)          = remove d m1 :=: remove d m2
-remove d (m1 :+: m2)          = m'1 :+: m'2 where
-  m'1 = remove d m1
-  m'2 = remove (d - dur m1) m2
+remove d (m1 :+: m2)          = remove d m1 :+: remove (d - dur m1) m2
 remove d (Modify (Tempo r) m) = tempo r (remove (d*r) m)
 remove d (Modify c m)         = Modify c (remove d m)
 
@@ -390,19 +385,17 @@ mergeLD ld1@(d1:ds1) ld2@(d2:ds2) = if d1 < d2
   else d2 : mergeLD ld1 ds2
 
 minL :: LazyDur -> Dur -> Dur
-minL []     d' = d'
-minL [d]    d' = min d d'
-minL (d:ds) d' = if d < d' then minL ds d' else d'
+minL []       d2 = d2
+minL [d1]     d2 = min d1 d2
+minL (d1:ds1) d2 = if d1 < d2 then minL ds1 d2 else d2
 
 cutL :: LazyDur -> Music a -> Music a
 cutL []     m                = rest 0
 cutL (d:ds) m | d <= 0       = cutL ds m
-cutL ld (Prim (Note oldD p)) = note (minL ld oldD) p
-cutL ld (Prim (Rest oldD))   = rest (minL ld oldD)
+cutL ld (Prim (Note d p))    = note (minL ld d) p
+cutL ld (Prim (Rest d))      = rest (minL ld d)
+cutL ld (m1 :+: m2)          = m1' :+: cutL (map (subtract $ dur m1') ld) m2 where m1' = cutL ld m1
 cutL ld (m1 :=: m2)          = cutL ld m1 :=: cutL ld m2
-cutL ld (m1 :+: m2)          = m'1 :+: m'2 where
-  m'1 = cutL ld m1
-  m'2 = cutL (map (\d -> d - dur m'1) ld) m2
 cutL ld (Modify (Tempo r) m) = tempo r (cutL (map (* r) ld) m)
 cutL ld (Modify c m)         = Modify c (cutL ld m)
 
@@ -428,23 +421,19 @@ data PercussionSound
   deriving (Show, Eq, Ord, Enum)
 
 perc :: PercussionSound -> Dur -> Music Pitch
-perc ps dur = instrument Percussion . note dur . pitch $ fromEnum ps + 35
-
-pMap :: (a -> b) -> Primitive a -> Primitive b
-pMap f (Note d x) = Note d (f x)
-pMap f (Rest d)   = Rest d
-
-mMap :: (a -> b) -> Music a -> Music b
-mMap f (Prim p)     = Prim (pMap f p)
-mMap f (m1 :+: m2)  = mMap f m1 :+: mMap f m2
-mMap f (m1 :=: m2)  = mMap f m1 :=: mMap f m2
-mMap f (Modify c m) = Modify c (mMap f m)
+perc ps dur = instrument Percussion $ note dur $ pitch $ fromEnum ps + 35
 
 instance Functor Primitive where
-  fmap = pMap
+--fmap :: (a -> b) -> Primitive a -> Primitive b
+  fmap f (Note d x) = Note d (f x)
+  fmap f (Rest d)   = Rest d
 
 instance Functor Music where
-  fmap = mMap
+--mMap :: (a -> b) -> Music a -> Music b
+  fmap f (Prim p)     = Prim (fmap f p)
+  fmap f (m1 :+: m2)  = fmap f m1 :+: fmap f m2
+  fmap f (m1 :=: m2)  = fmap f m1 :=: fmap f m2
+  fmap f (Modify c m) = Modify c (fmap f m)
 
 mFold ::
      (Primitive a -> b)
@@ -463,10 +452,10 @@ mFold f (+:) (=:) g m = case m of
 -- rather than wrapping it with Modify. The following functions allow this.
 
 shiftPitches :: AbsPitch -> Music Pitch -> Music Pitch
-shiftPitches k = mMap (trans k)
+shiftPitches k = fmap (trans k)
 
 shiftPitches1 :: AbsPitch -> Music (Pitch, b) -> Music (Pitch, b)
-shiftPitches1 k = mMap (\(p, xs) -> (trans k p, xs))
+shiftPitches1 k = fmap (\(p, xs) -> (trans k p, xs))
 
 scaleDurations :: Rational -> Music a -> Music a
 scaleDurations r (Prim (Note d p)) = note (d/r) p
