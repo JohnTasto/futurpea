@@ -18,7 +18,7 @@ import Euterpea.IO.Audio.Types hiding (Signal)
 type Signal clk a b = ArrowP SF clk a b
 
 -- | Writes sound to a wave file (.wav)
-outFile :: forall a p. (AudioSample a, Clock p)
+outFile :: (AudioSample a, Clock p)
   => String         -- ^ Filename to write to.
   -> Double         -- ^ Duration of the wav in seconds.
   -> Signal p () a  -- ^ Signal representing the sound.
@@ -26,14 +26,14 @@ outFile :: forall a p. (AudioSample a, Clock p)
 outFile = outFileHelp' id
 
 normList :: [Double] -> [Double]
-normList xs = (\x -> x / max 1.0 (maximum $ abs <$> xs)) <$> xs
+normList xs = map (/ max 1.0 (maximum $ map abs xs)) xs
 
 -- | Like outFile, but normalizes the output if the amplitude of
 -- the signal goes above 1.  If the maximum sample is less than
 -- or equal to 1, the output is not normalized.
 -- Currently this requires storing the entire output stream in memory
 -- before writing to the file.
-outFileNorm :: forall a p. (AudioSample a, Clock p)
+outFileNorm :: (AudioSample a, Clock p)
   => String         -- ^ Filename to write to.
   -> Double         -- ^ Duration of the wav in seconds.
   -> Signal p () a  -- ^ Signal representing the sound.
@@ -47,17 +47,17 @@ outFileHelp :: forall a p. (AudioSample a, Clock p)
   -> Signal p () a           -- ^ Signal representing the sound.
   -> IO ()
 outFileHelp f filepath dur sf = exportFile filepath aud where
-  sr          = rate (undefined :: p)
-  numChannels = numChans (undefined :: a)
-  numSamples  = truncate (dur * sr) * numChannels
-                     -- multiply by 0.999 to avoid wraparound at 1.0
-  dat         = map (fromSample . (*0.999)) (f (toSamples dur sf)) :: [Int32]
-  array       = listArray (0, numSamples-1) dat
   aud = Audio
     { sampleRate    = truncate sr
     , channelNumber = numChannels
     , sampleData    = array
     }
+  array       = listArray (0, numSamples - 1) dat
+  numSamples  = truncate (dur*sr) * numChannels
+                      -- multiply by 0.999 to avoid wraparound at 1.0
+  dat         = map (fromSample . (* 0.999)) (f (toSamples dur sf)) :: [Int32]
+  sr          = rate (undefined :: p)
+  numChannels = numChans (undefined :: a)
 
 -- Alternative definition of the above that enforces a clipping behavior when
 -- the value exceeds the [-1.0, 1.0] range. The overflow behavior makes it
@@ -72,16 +72,16 @@ outFileHelp' :: forall a p. (AudioSample a, Clock p)
   -> Signal p () a           -- ^ Signal representing the sound.
   -> IO ()
 outFileHelp' f filepath dur sf = exportFile filepath aud where
-  sr          = rate (undefined :: p)
-  numChannels = numChans (undefined :: a)
-  numSamples  = truncate (dur * sr) * numChannels
-  dat         = map (fromSample . (*0.999) . clipFix) (f (toSamples dur sf)) :: [Int32]
-  array       = listArray (0, numSamples-1) dat
   aud = Audio
     { sampleRate    = truncate sr
     , channelNumber = numChannels
     , sampleData    = array
     }
+  array       = listArray (0, numSamples - 1) dat
+  numSamples  = truncate (dur*sr) * numChannels
+  dat         = map (fromSample . (* 0.999) . clipFix) (f (toSamples dur sf)) :: [Int32]
+  sr          = rate (undefined :: p)
+  numChannels = numChans (undefined :: a)
   clipFix x
     | x > 1.0    = 1.0
     | x < (-1.0) = -1.0
@@ -89,10 +89,10 @@ outFileHelp' f filepath dur sf = exportFile filepath aud where
 
 toSamples :: forall a p. (AudioSample a, Clock p) => Double -> Signal p () a -> [Double]
 toSamples dur = take numSamples . concatMap collapse . unfold . strip where
+  numSamples  = truncate (dur*sr) * numChannels
   sr          = rate     (undefined :: p)
   numChannels = numChans (undefined :: a)
-  numSamples  = truncate (dur * sr) * numChannels
 
 -- | Compute the maximum sample of an SF in the first 'dur' seconds.
-maxSample :: forall a p. (AudioSample a, Clock p) => Double -> Signal p () a -> Double
-maxSample dur sf = maximum $ abs <$> toSamples dur sf
+maxSample :: (AudioSample a, Clock p) => Double -> Signal p () a -> Double
+maxSample dur sf = maximum $ map abs $ toSamples dur sf

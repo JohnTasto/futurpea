@@ -47,7 +47,7 @@ data PlayParams = PlayParams
 -- channel 9 (which is channel 10 when indexing from 1), using the default MIDI
 -- device as set by the operating system, and using a closing offset of 1.0sec.
 
-defParams :: PlayParams
+defParams :: PlayParams  -- derived
 defParams = PlayParams False (linearCP 16 9) Nothing 1.0 perform1
 
 -- New implementation of play using default parameters:
@@ -59,10 +59,10 @@ playS :: (ToMusic1 a, NFData a) => Music a -> IO ()
 playS = playC defParams{strict=True}
 
 playDev :: (ToMusic1 a, NFData a) => Int -> Music a -> IO ()
-playDev i = playC defParams{devID = Just $ unsafeOutputID i}
+playDev i = playC defParams{devID=Just $ unsafeOutputID i}
 
 playDevS :: (ToMusic1 a, NFData a) => Int -> Music a -> IO()
-playDevS i = playC defParams{strict=True, devID = Just $ unsafeOutputID i}
+playDevS i = playC defParams{strict=True, devID=Just $ unsafeOutputID i}
 
 -- "Custom play" interface:
 
@@ -72,7 +72,7 @@ playC p = if strict p then playStrict p else playInf p
 -- Getting a list of all MIDI input and output devices, showing both
 -- their device IDs and names.
 
-devices :: IO ()
+devices :: IO ()  -- derived
 devices = do
   (devsIn, devsOut) <- getAllDevices
   let f (devid, devname) = "  " ++ show devid ++ "\t" ++ name devname ++ "\n"
@@ -91,15 +91,16 @@ devices = do
 -- note, even if there is a long computation offset prior to any sound.
 
 playStrict :: (ToMusic1 a, NFData a) => PlayParams -> Music a -> IO ()
-playStrict p m = m `deepseq` x `deepseq` playM' (devID p) x where
-  x = toMidi (perfAlg p $ toMusic1 m)
+playStrict p m = m `deepseq` x `deepseq` playM' (devID p) x
+  where x = toMidi (perfAlg p $ toMusic1 m)
 
 playM' :: Maybe OutputDeviceID -> Midi -> IO ()
 playM' devID midi = handleCtrlC $ do
   initialize
   maybe (defaultOutput playMidi) playMidi devID midi
   terminate
-  return () where
+  return ()
+  where
     handleCtrlC :: IO a -> IO a
     handleCtrlC op = onException op terminate
 
@@ -115,17 +116,18 @@ playInf p m = handleCtrlC $ do
   maybe (defaultOutput playRec) playRec (devID p) $ musicToMsgs' p m
   threadDelay $ round (closeDelay p * 1000000)
   terminateMidi
-  return () where
-  handleCtrlC :: IO a -> IO a
-  handleCtrlC op = do
-    dev <- resolveOutDev (devID p)
-    onException op (stopMidiOut dev 16)
+  return ()
+  where
+    handleCtrlC :: IO a -> IO a
+    handleCtrlC op = do
+      dev <- resolveOutDev (devID p)
+      onException op (stopMidiOut dev 16)
 
 -- Bug fix on Sept 24, 2018: on Mac, the default output device may not be zero.
 -- In rare cases on Mac, there are outputs but the default ID is Nothing, but
 -- in these cases the default always seems to be the first output in the list.
 
-resolveOutDev :: Maybe OutputDeviceID -> IO OutputDeviceID
+resolveOutDev :: Maybe OutputDeviceID -> IO OutputDeviceID  -- derived
 resolveOutDev Nothing  = do
   outDevM <- getDefaultOutputDeviceID
   (ins, outs) <- getAllDevices
@@ -143,22 +145,24 @@ stopMidiOut dev i = if i < 0
   then threadDelay 1000000 >> terminateMidi
   else do
     deliverMidiEvent dev (0, Std $ ControlChange i 123 0)
-    stopMidiOut dev (i-1)
+    stopMidiOut dev (i - 1)
 
--- 'RealFrac a' might not be correct - it appeases the compiler here though
-playRec :: RealFrac a => OutputDeviceID -> [(a, MidiMessage)] -> IO ()
+playRec :: RealFrac a => OutputDeviceID -> [(a, MidiMessage)] -> IO ()  -- derived
 playRec dev []              = return ()
 playRec dev (x@(t, m) : ms) = if t > 0
   then threadDelay (toMicroSec t) >> playRec dev ((0, m) : ms)
-  else
-    let mNow   = x : takeWhile ((<= 0).fst) ms
-        mLater = drop (length mNow - 1) ms
-    in  doMidiOut dev (Just mNow) >> playRec dev mLater where
-      doMidiOut dev Nothing   = outputMidi dev
-      doMidiOut dev (Just ms) = do
-        outputMidi dev
-        mapM_ (\(t, m) -> deliverMidiEvent dev (0, m)) ms
-      toMicroSec x            = round (x * 1000000)
+  else doMidiOut dev (Just mNow) >> playRec dev mLater
+  where
+    toMicroSec x            = round (x * 1000000)
+
+    doMidiOut :: Foldable t => OutputDeviceID -> Maybe (t (a, MidiMessage)) -> IO ()  -- derived
+    doMidiOut dev Nothing   = outputMidi dev
+    doMidiOut dev (Just ms) = do
+      outputMidi dev
+      mapM_ (\ (t, m) -> deliverMidiEvent dev (0, m)) ms
+
+    mNow                    = x : takeWhile ((<= 0).fst) ms
+    mLater                  = drop (length mNow - 1) ms
 
 
 -- ---------------------------------
@@ -195,37 +199,36 @@ type ChannelMapFun = InstrumentName -> ChannelMap -> (Channel, ChannelMap)
 -- it will sometimes have its NoteOff lost, which can cause errors.
 
 musicToMsgs' :: (ToMusic1 a) => PlayParams -> Music a -> [(Time, MidiMessage)]
-musicToMsgs' p m =
-  let perf     = perfAlg p $ toMusic1 m                       -- obtain the performance
-      evsA     = channelMap (chanPolicy p) [] perf            -- time-stamped ANote values
-      evs      = stdMerge evsA                                -- merged On/Off events sorted by absolute time
-      times    = map fst evs                                  -- absolute times in seconds
-      newTimes = zipWith subtract (head times : times) times  -- relative times
-  in  zip newTimes (map snd evs) where
+musicToMsgs' p m = zip newTimes (map snd evs)
+  where
+    newTimes = zipWith subtract (head times : times) times  -- relative times
+    times    = map fst evs                                  -- absolute times in seconds
+    evs      = stdMerge evsA                                -- merged On/Off events sorted by absolute time
+    evsA     = channelMap (chanPolicy p) [] perf            -- time-stamped ANote values
+    perf     = perfAlg p $ toMusic1 m                       -- obtain the performance
 
     -- Converts ANotes into a sorted list of On/Off events
     stdMerge :: [(Time, MidiMessage)] -> [(Time, MidiMessage)]
-    stdMerge []                      = []
-    stdMerge ((t, ANote c k v d):es) =
+    stdMerge []                        = []
+    stdMerge ((t, ANote c k v d) : es) =
       (t, Std $ NoteOn c k v) :
-      stdMerge (insertBy (\(a, b) (x, y) -> compare a x) (t+d, Std $ NoteOff c k v) es)
-    stdMerge (e1                :es) = e1 : stdMerge es
+      stdMerge (insertBy (\(a, b) (x, y) -> compare a x) (t + d, Std $ NoteOff c k v) es)
+    stdMerge (e1                 : es) = e1 : stdMerge es
 
     -- Performs instrument assignment for a list of Events
     channelMap :: ChannelMapFun -> ChannelMap -> [MEvent] -> [(Time, MidiMessage)]
-    channelMap cf cMap [] = []
-    channelMap cf cMap (e:es) =
-      let i                     = eInst e
-          ((chan, cMap'), newI) = case lookup i cMap of
-            Nothing -> (cf i cMap, True)
-            Just x  -> ((x, cMap), False)
-          e'                    =
-            (fromRational (eTime e), ANote chan (ePitch e) (eVol e) (fromRational $ eDur e))
-          es'                   = channelMap cf cMap' es
-          iNum                  = if i==Percussion then 0 else fromEnum i
-      in  if newI
-            then (fst e', Std $ ProgramChange chan iNum) : e' : es'
-            else e' : es'
+    channelMap _  _    []     = []
+    channelMap cf cMap (e:es) = if newI
+      then (fst e', Std $ ProgramChange chan iNum) : e' : es'
+      else e' : es'
+      where
+        ((chan, cMap'), newI) = case lookup i cMap of
+          Nothing -> (cf i cMap, True)
+          Just x  -> ((x, cMap), False)
+        e'                    = (fromRational (eTime e), ANote chan (ePitch e) (eVol e) (fromRational $ eDur e))
+        es'                   = channelMap cf cMap' es
+        iNum                  = if i == Percussion then 0 else fromEnum i
+        i                     = eInst e
 
 -- The linearCP channel map just fills up channels left to right until it hits
 -- the maximum number and then throws an error. Percussion is handled as a
@@ -235,12 +238,13 @@ type NumChannels = Int  -- maximum number of channels (i.e. 0-15 is 16 channels)
 type PercChan    = Int  -- percussion channel, using indexing from zero
 
 linearCP :: NumChannels -> PercChan -> ChannelMapFun
-linearCP cLim pChan i cMap = if i == Percussion then (pChan, (i, pChan):cMap) else
-  let n       = length $ filter ((/= Percussion) . fst) cMap
-      newChan = if n >= pChan then n+1 else n  -- step over the percussion channel
-  in  if newChan < cLim
-        then (newChan, (i, newChan) : cMap)
-        else error ("Cannot use more than " ++ show cLim ++ " instruments.")
+linearCP cLim pChan i cMap
+  | i == Percussion = (pChan, (i, pChan) : cMap)
+  | newChan < cLim  = (newChan, (i, newChan) : cMap)
+  | otherwise       = error ("Cannot use more than " ++ show cLim ++ " instruments.")
+  where
+    newChan = if n >= pChan then n + 1 else n  -- step over the percussion channel
+    n       = length $ filter ((/= Percussion) . fst) cMap
 
 -- For the dynamicCP channel map, new assignements are added in the left side
 -- of the channel map/list. This means that the item farthest to the right
@@ -248,13 +252,14 @@ linearCP cLim pChan i cMap = if i == Percussion then (pChan, (i, pChan):cMap) el
 -- is handled separately.
 
 dynamicCP :: NumChannels -> PercChan -> ChannelMapFun
-dynamicCP cLim pChan i cMap = if i == Percussion then (pChan, (i, pChan) : cMap) else
-  let cMapNoP = filter ((/= Percussion) . fst) cMap
-      extra   = if length cMapNoP == length cMap then [] else [(Percussion, pChan)]
-      newChan = snd $ last cMapNoP
-  in  if length cMapNoP < cLim - 1
-        then linearCP cLim pChan i cMap
-        else (newChan, (i, newChan) : (take (length cMapNoP - 1) cMapNoP)++extra)
+dynamicCP cLim pChan i cMap
+  | i == Percussion = (pChan, (i, pChan) : cMap)
+  | length cMapNoP < cLim - 1 = linearCP cLim pChan i cMap
+  | otherwise = (newChan, (i, newChan) : take (length cMapNoP - 1) cMapNoP ++ extra)
+  where
+    newChan = snd $ last cMapNoP
+    extra   = [(Percussion, pChan) | length cMapNoP /= length cMap]
+    cMapNoP = filter ((/= Percussion) . fst) cMap
 
 
 -- A predefined policy will send instruments to user-defined channels. If new

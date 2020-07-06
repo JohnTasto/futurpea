@@ -69,6 +69,8 @@ import Data.List (findIndex)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Heap as Heap
 
+import Foreign.C.Types (CLong)
+
 import System.IO (hPutStrLn, stderr)
 import System.IO.Unsafe (unsafePerformIO)
 import Control.DeepSeq (NFData)
@@ -177,7 +179,7 @@ makePriorityChannel = do
       pop      = do
         h <- get
         let Just (a, h') = Heap.view h
-        modifyIORef heapRef (const h')
+        writeIORef heapRef h'
         return a
       peek     = Heap.viewHead <$> get
   return $ PrioChannel get push pop peek
@@ -245,7 +247,7 @@ terminateMidi = do
   inits <- readIORef outDevMap
   mapM_ (\(_, (_, _out, stop)) -> stop) inits
   terminate
-  modifyIORef outDevMap (const [])
+  writeIORef outDevMap []
   writeIORef outPort []
   writeIORef inPort []
 
@@ -348,8 +350,8 @@ pollMidi idid@(InputDeviceID devId) = do
 
 deliverMidiEvent :: OutputDeviceID -> MidiEvent -> IO ()
 deliverMidiEvent devId (t, m) = do
-  (pChan, out, _stop) <- getOutDev devId
-  now                 <- getTimeNow
+  (pChan, out, _) <- getOutDev devId
+  now             <- getTimeNow
   let deliver t m = if t == 0
         then out (now, m)
         else push pChan (now+t) m
@@ -365,7 +367,7 @@ deliverMidiEvent devId (t, m) = do
 
 outputMidi :: OutputDeviceID -> IO ()
 outputMidi devId = do
-  (pChan, out, _stop) <- getOutDev devId
+  (pChan, out, _) <- getOutDev devId
   let loop = do
         r <- peek pChan
         case r of
@@ -441,6 +443,7 @@ midiOutRealTime' odid@(OutputDeviceID devId) = do
       addPort outPort (odid, s)
       return $ Just (process odid, finalize odid)
   where
+    process :: RealFrac a => OutputDeviceID -> (a, Message) -> IO ()  -- derived
     process odid (t, msg) = do
       s <- lookupPort outPort odid
       case s of
@@ -451,11 +454,15 @@ midiOutRealTime' odid@(OutputDeviceID devId) = do
             else case midiEvent msg of
               Just m  -> writeMsg s t $ encodeMsg m
               Nothing -> return ()
+
+    writeMsg :: RealFrac a => PMStream -> a -> CLong -> IO ()  -- derived
     writeMsg s t m = do
       e <- writeShort s (PMEvent m (round (t * 1e3)))
       case e of
         NoError -> return ()
         _       -> reportError "midiOutRealTime'" e
+
+    finalize :: OutputDeviceID -> IO ()  -- derived
     finalize odid = do
       s <- lookupPort outPort odid
       e <- maybe (return NoError) close s
@@ -474,12 +481,17 @@ midiOutRealTime odid@(OutputDeviceID devId) = do
       wait <- newEmptyMVar
       fin  <- newEmptyMVar
       forkIO (pump s ch wait fin)
-      return $ Just (output s ch wait, stop ch fin)
+      return $ Just (output ch wait, stop ch fin)
   where
+    stop :: TChan (Maybe a) -> MVar b -> IO b  -- derived
     stop ch fin = atomically (unGetTChan ch Nothing) >> takeMVar fin
-    output s ch wait evt@(_, m) = do
+
+    output :: TChan (Maybe (a, Message)) -> MVar () -> (a, Message) -> IO ()  -- derived
+    output ch wait evt@(_, m) = do
       atomically $ writeTChan ch (Just evt)
       when (isTrackEnd m) $ takeMVar wait
+
+    pump :: PMStream -> TChan (Maybe (Time, Message)) -> MVar () -> MVar () -> IO ()  -- derived
     pump s ch wait fin = loop where
       loop = do
         e <- atomically $ readTChan ch
@@ -495,7 +507,8 @@ midiOutRealTime odid@(OutputDeviceID devId) = do
                   then waitUntil (t + 1)
                   else loop
         where
-          waitUntil t   = do
+          waitUntil :: Time -> IO ()  -- derived
+          waitUntil t = do
             now <- getTimeNow
             if t > now
               then do
@@ -509,12 +522,18 @@ midiOutRealTime odid@(OutputDeviceID devId) = do
                       Nothing -> finishup
                       _       -> waitUntil t
               else finishup
+
+          finishup :: IO ()  -- derived
           finishup      = putMVar wait () >> close s >> putMVar fin ()
+
+          process :: RealFrac t => t -> Message -> IO Bool  -- derived
           process t msg = if isTrackEnd msg
             then return True
             else case midiEvent msg of
               Just m  -> writeMsg t $ encodeMsg m
               Nothing -> return False
+
+          writeMsg :: RealFrac t => t -> CLong -> IO Bool  -- derived
           writeMsg t m  = do
             e <- writeShort s (PMEvent m (round (t * 1e3)))
             case e of
@@ -569,9 +588,6 @@ reportError prompt e = do
   hPutStrLn stderr $ prompt ++ ": " ++  err
 
 
-
-
-
 -- ----------------------
 --  | Unused Functions |
 -- ----------------------
@@ -590,6 +606,7 @@ playTrackRealTime device track = do
     Nothing          -> return ()
     Just (out, stop) -> finally (playTrack out track) stop
   where
+    playTrack :: ((Time, Message) -> IO ()) -> [(a, Message)] -> IO ()  -- derived
     playTrack out [] = do
       t <- getTimeNow
       out (t, TrackEnd)
@@ -626,6 +643,7 @@ midiInRealTime device callback = do
       forkIO (loop Nothing s fin)
       return (Just (putMVar fin () >> putMVar fin ()))
   where
+ -- loop :: Maybe Sound.PortMidi.Timestamp -> PMStream -> MVar a -> IO ()  -- derived
     loop start s fin = do
       done <- tryTakeMVar fin
       t    <- getTimeNow
@@ -644,6 +662,7 @@ midiInRealTime device callback = do
               t <- getTimeNow
               sendEvts start t l
       where
+     -- sendEvts :: Maybe Sound.PortMidi.Timestamp -> Time -> [PMEvent] -> IO ()  -- derived
         sendEvts start now []                  = loop start s fin
         sendEvts start now (e@(PMEvent m t):l) = do
           let t0 = fromMaybe t start

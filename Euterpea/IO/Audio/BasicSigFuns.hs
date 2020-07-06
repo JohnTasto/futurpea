@@ -84,7 +84,7 @@ constA = arr . const
 -- ----------------
 
 wrap :: (Ord n, Num n) => n -> n -> n
-wrap val bound = if val > bound then wrap val (val-bound) else val
+wrap val bound = if val > bound then wrap val (val - bound) else val
 
 clip :: Ord n => n -> n -> n -> n
 clip val lower upper
@@ -95,7 +95,7 @@ clip val lower upper
 -- Raises 'a' to the power 'b' using logarithms.
 
 pow :: Floating a => a -> a -> a
-pow a b = exp (log a * b)
+pow a b = exp(log a*b)
 
 -- Returns the fractional part of 'x'.
 
@@ -113,14 +113,14 @@ data Table = Table
   !Bool                 -- Whether the table is normalized
 
 instance Show Table where
-  show (Table sz a n) = "Table with " ++ show sz ++ " entries: " ++ show a
+  show (Table sz a _) = "Table with " ++ show sz ++ " entries: " ++ show a
 
-funToTable :: (Double->Double) -> Bool -> Int -> Table
+funToTable :: (Double -> Double) -> Bool -> Int -> Table
 funToTable f normalize size = Table size (listArray (0, size) zs) normalize where
-  delta  = 1 / fromIntegral size
-  ys     = take size (map f [0, delta..]) ++ [head ys]
-  zs     = if normalize then map (/ maxabs ys) ys else ys  -- make table one size larger as an extended guard point
+  zs     = if normalize then map (/ maxabs ys) ys else ys
+  ys     = take size (map f [0, delta..]) ++ [head ys]  -- make table one size larger as an extended guard point
   maxabs = maximum . map abs
+  delta  = 1 / fromIntegral size
 
 readFromTable :: Table -> Double -> Double
 readFromTable (Table sz array _) pos = array `unsafeAt` idx where
@@ -136,11 +136,11 @@ readFromTableRaw (Table _ a _) idx = a `unsafeAt` idx
 -- | Like readFromTable, but with linear interpolation.
 readFromTablei :: Table -> Double -> Double
 readFromTablei (Table sz array _) pos = val0 + (val1 - val0) * (idx - fromIntegral idx0) where
-  idx  = fromIntegral sz * pos  -- fractional "index" in table ([0, sz])
-  idx0 = truncate idx `mod` sz :: Int
-  idx1 = idx0 + 1              :: Int
   val0 = array `unsafeAt` idx0
   val1 = array `unsafeAt` idx1
+  idx0 = truncate idx `mod` sz :: Int
+  idx1 = idx0 + 1              :: Int
+  idx  = fromIntegral sz * pos  -- fractional "index" in table ([0, sz])
 {-# INLINE [0] readFromTablei #-}
 
 readFromTableiA :: Arrow a => Table -> a Double Double
@@ -153,8 +153,8 @@ tablei :: (Clock p, Arrow a)
   => Table   -- ^ Table to read from.
   -> Bool    -- ^ Whether to wrap around index; if not, index is clipped within bounds
   -> ArrowP a p Double Double
-tablei tab True  = proc pos -> outA -< readFromTablei tab (wrap pos 1)
-tablei tab False = proc pos -> outA -< readFromTablei tab (clip pos 0 1)
+tablei tab True  = proc pos -> outA -< readFromTablei tab $ wrap pos 1
+tablei tab False = proc pos -> outA -< readFromTablei tab $ clip pos 0 1
 
 -- | Accesses table values by direct indexing; the index is normalized
 -- (between 0 and 1).
@@ -166,18 +166,19 @@ table tab False = proc pos -> outA -< readFromTable tab $ clip pos 0 1
 -- and (size of table - 1), inclusive).
 tableiIx :: (Clock p, Arrow a) => Table -> Bool -> ArrowP a p Double Double
 tableiIx tab@(Table sz array _) True  = proc idx -> do
-  let idx0 = (truncate idx) `mod` sz
-      val0 = readFromTableRaw tab idx0
-      val1 = readFromTableRaw tab (idx0 + 1)
+  let
+    val0 = readFromTableRaw tab idx0
+    val1 = readFromTableRaw tab (idx0 + 1)
+    idx0 = truncate idx `mod` sz
   outA -< val0 + (val1 - val0) * (idx - fromIntegral idx0)
 tableiIx tab@(Table sz _     _) False = proc idx -> do
-  let pos = idx / fromIntegral (sz-1)
+  let pos = idx / fromIntegral (sz - 1)
   outA -< readFromTablei tab (clip pos 0 1)
 
 -- | Like table, but index interpreted as raw value.
 tableIx :: (Clock p, Arrow a) => Table -> Bool -> ArrowP a p Double Double
-tableIx tab@(Table sz array _) True  = proc idx -> outA -< readFromTableRaw tab $ truncate idx `mod` (sz-1)
-tableIx tab@(Table sz array _) False = proc idx -> outA -< readFromTableRaw tab . clip (truncate idx) 0 $ sz-1
+tableIx tab@(Table sz array _) True  = proc idx -> outA -< readFromTableRaw tab $ truncate idx `mod` (sz - 1)
+tableIx tab@(Table sz array _) False = proc idx -> outA -< readFromTableRaw tab $ clip (truncate idx) 0 (sz - 1)
 
 -- Oscillators
 -- -----------
@@ -202,8 +203,9 @@ oscI table iphs = osc_ iphs >>> readFromTableiA table
 osc_ :: forall p a. (Clock p, ArrowCircuit a) => Double -> ArrowP a p Double Double
 osc_ phs = proc freq -> do
   rec
-    let delta = 1 / sr * freq
-        phase = if next > 1 then frac next else next
+    let
+      delta = 1/sr*freq
+      phase = if next > 1 then frac next else next
     next <- delay phs -< frac (phase + delta)
   outA -< phase
   where sr = rate (undefined :: p)
@@ -214,16 +216,16 @@ osc_ phs = proc freq -> do
 
 oscFixed :: forall p a. (Clock p, ArrowCircuit a) => Double -> ArrowP a p () Double
 oscFixed freq = sf where
-  omh = 2 * pi * freq / sr
-  d   = sin omh
-  c   = 2 * cos omh
-  sr  = rate (undefined :: p)
   sf  = proc () -> do
     rec
-      let r = c * d2 - d1
+      let r = c*d2 - d1
       d1 <- delay 0 -< d2
       d2 <- delay d -< r
     outA -< r
+  c   = 2*cos omh
+  d   = sin omh
+  omh = 2*pi*freq/sr
+  sr  = rate (undefined :: p)
 
 -- 'oscDur' accesses values by sampling once through the function table
 -- at a rate determined by 'dur'. For the first 'del' seconds, the point
@@ -260,14 +262,14 @@ oscDur_ osc table@(Table sz _ _) del dur = proc () -> do
   i <- countUp -< ()
   let i' = fromIntegral i
   y <- case (i' < t1, i' < t2) of
-    (True,  _    ) -> outA         -< v0
-    (False, True ) -> osc table 0  -< 1 / dur
-    (False, False) -> outA         -< v2
+    (True,  _    ) -> outA        -< v0
+    (False, True ) -> osc table 0 -< 1 / dur
+    (False, False) -> outA        -< v2
   outA -< y
   where
-    sr = rate (undefined :: p)
     t1 = del * sr
     t2 = t1 + dur * sr
+    sr = rate (undefined :: p)
     v0 = readFromTableRaw table 0
     v2 = readFromTableRaw table (sz-1)
 
@@ -291,8 +293,9 @@ oscPartials :: forall p. Clock p
 -- 'nharms' is the number of harmonics requested
 oscPartials table initialPhase = proc (freq, nharms) -> do
   rec
-    let delta = 1 / sr * freq
-        phase = if next > 1 then frac next else next
+    let
+      delta = 1/sr*freq
+      phase = if next > 1 then frac next else next
     next <- delay initialPhase -< frac (phase + delta)
   outA -< sum
     [ readFromTable table (frac (phase * fromIntegral pn))
@@ -330,8 +333,8 @@ pluck table pitch method = proc cps -> do
     z <- delayLineT (max 64 (truncate (sr / pitch))) table -< y
     z' <- delay 0 -< z
     let y = case method of
-          SimpleAveraging       -> 0.5 * (z + z')
-          WeightedAveraging a b -> z * a + z' * b
+          SimpleAveraging       -> 0.5*(z + z')
+          WeightedAveraging a b -> a*z + b*z'
           _                     -> error "pluck: method not implemented"
   outA -< y
   where sr = rate (undefined :: p)
@@ -372,17 +375,17 @@ updateBuf (Buf _ a) i u = a `seq` i `seq` u `seq` do
   poke p u
   return x'
 
-peekBuf :: Buf -> Int -> IO Double
-peekBuf (Buf sz a) i = peek (a `advancePtr` min (sz-1) i)
+peekBuf :: Buf -> Int -> IO Double  -- derived
+peekBuf (Buf sz a) i = peek (a `advancePtr` min (sz - 1) i)
 
 -- TODO: deal with pre-initialized buffers
 
 mkArr :: Int -> Buf
 mkArr n = n `seq` Buf n (unsafePerformIO $ Foreign.Marshal.newArray (replicate n 0))
 
-mkArrWithTable :: Int -> Table -> Buf
+mkArrWithTable :: Int -> Table -> Buf  -- derived
 mkArrWithTable size t = Buf size (unsafePerformIO $
-  Foreign.Marshal.newArray (map (readFromTable t) [0, (1/sz)..((sz-1)/sz)]))
+  Foreign.Marshal.newArray (map (readFromTable t) [0, (1/sz)..((sz - 1)/sz)]))
   where sz = fromIntegral size
 
 -- A fixed-length delay line, initialized using a table.
@@ -394,34 +397,31 @@ delayLineT size table = proc x -> do
     i <- delay 0 -< i'
     y <- delay 0 -< x
   -- TODO: this proc can't be strict on x, but how can we deal with strictness better without this hack?
-  outA -< unsafePerformIO $ updateBuf buf i y
-  where
-    sr  = rate (undefined :: p)
-    buf = mkArrWithTable size table
+  outA -< unsafePerformIO $ updateBuf (mkArrWithTable size table) i y
 
 -- A fixed-length delay line.
 
 delayLine :: forall p. Clock p =>  Double -> Signal p Double Double
 delayLine maxdel = proc x -> do
   rec
-    let i' = if i == sz-1 then 0 else i+1
+    let i' = if i == sz - 1 then 0 else i + 1
     i <- delay 0 -< i'
     y <- delay 0 -< x
-  outA -< unsafePerformIO $ updateBuf buf i y
+  outA -< unsafePerformIO $ updateBuf (mkArr sz) i y
   where
-    sr  = rate (undefined :: p)
     sz  = truncate (sr * maxdel)
-    buf = mkArr sz
+    sr  = rate (undefined :: p)
 
 -- delay line with one tap.
 
 delayLine1 :: forall p. Clock p => Double -> Signal p (Double, Double) Double
 delayLine1 maxdel = proc (sig, dlt) -> do
   rec
-    let i'     = if i == sz-1 then 0 else i+1
-        dl     = min maxdel dlt
-        tap    = i - truncate (sr * dl)
-        tapidx = if tap < 0 then sz + tap else tap
+    let
+      i'     = if i == sz - 1 then 0 else i + 1
+      tapidx = if tap < 0 then sz + tap else tap
+      tap    = i - truncate (sr*dl)
+      dl     = min maxdel dlt
     i <- delay 0 -< i'
     y <- delay 0 -< sig
   outA -< unsafePerformIO $ do
@@ -429,9 +429,9 @@ delayLine1 maxdel = proc (sig, dlt) -> do
     _ <- updateBuf buf i y
     return s
   where
-    sr  = rate (undefined :: p)
-    sz  = truncate (sr * maxdel)
     buf = mkArr sz
+    sz  = truncate (sr * maxdel)
+    sr  = rate (undefined :: p)
 
 -- delay line with two taps.
 
@@ -460,9 +460,8 @@ noiseWhite :: Int -> Signal p () Double
 noiseWhite seed = proc () -> do
   rec
     let (a, g') = random g :: (Double, StdGen)
-    g <- delay gen -< g'
-  outA -< a * 2 - 1
-  where gen = mkStdGen seed
+    g <- delay (mkStdGen seed) -< g'
+  outA -< a*2 - 1
 
 -- Controlled band-limited noise with interpolation between each new
 -- number, and with an RMS value of 1 / sqrt 2.
@@ -471,21 +470,21 @@ noiseWhite seed = proc () -> do
 
 noiseBLI :: forall p. Clock p => Int -> Signal p Double Double
 noiseBLI seed = proc cps -> do
-  let bound = sr / cps
+  let bound = sr/cps
   rec
     state <- delay (0, i_pr) -< state'
-    let (cnt, pr@(n1, n2, g)) = state
-        n                     = n1 + (n2 - n1) * cnt / bound
-        state'                = if cnt + 1 < bound
-          then (cnt + 1, pr)
-          else (0, (n2, n3, g')) where (n3, g') = random g :: (Double, StdGen)
-  outA -< n * 2 - 1
+    let
+      n                     = n1 + (n2 - n1)*cnt/bound
+      state'                = if cnt + 1 < bound
+        then (cnt + 1, pr)
+        else (0, (n2, n3, g')) where (n3, g') = random g :: (Double, StdGen)
+      (cnt, pr@(n1, n2, g)) = state
+  outA -< n*2 - 1
   where
     sr           = rate (undefined :: p)
-    gen          = mkStdGen seed
-    (i_n1, i_g1) = random gen  :: (Double, StdGen)
-    (i_n2, i_g2) = random i_g1 :: (Double, StdGen)
     i_pr         = (i_n1, i_n2, i_g2)
+    (i_n1, i_g1) = random (mkStdGen seed) :: (Double, StdGen)
+    (i_n2, i_g2) = random i_g1            :: (Double, StdGen)
 
 -- Controlled band-limited noise without interpolation (holds
 -- previous value instead), and with an RMS value of 1 / sqrt 2.
@@ -494,19 +493,19 @@ noiseBLI seed = proc cps -> do
 
 noiseBLH :: forall p. Clock p => Int -> Signal p Double Double
 noiseBLH seed = proc cps -> do
-  let bound = sr / cps
+  let bound = sr/cps
   rec
     state <- delay (0, i_pr) -< state'
-    let (cnt, pr@(n, g)) = state
-        state'           = if cnt + 1 < bound
-          then (cnt + 1, pr)
-          else (0, (n', g')) where (n', g') = random g :: (Double, StdGen)
-  outA -< n * 2 - 1
+    let
+      state'           = if cnt + 1 < bound
+        then (cnt + 1, pr)
+        else (0, (n', g')) where (n', g') = random g :: (Double, StdGen)
+      (cnt, pr@(n, g)) = state
+  outA -< n*2 - 1
   where
     sr          = rate (undefined :: p)
-    gen         = mkStdGen seed
-    (i_n1, i_g) = random gen :: (Double, StdGen)
     i_pr        = (i_n1, i_g)
+    (i_n1, i_g) = random (mkStdGen seed) :: (Double, StdGen)
 
 -- Gain Adjustment
 -- ---------------
@@ -517,18 +516,18 @@ balance :: forall p. Clock p => Int -> Signal p (Double, Double) Double
 balance ihp = proc (sig, ref) -> do
   rec
     (sqrsum, refsum) <- delay (0, 0) -< (sqrsum', refsum')
-    let sqrsum' = c1 * sig * sig + c2 * sqrsum
-        refsum' = c1 * ref * ref + c2 * refsum
-        ratio   = if sqrsum == 0
-          then sqrt refsum
-          else sqrt $ refsum / sqrsum
+    let
+      sqrsum' = c1*sig*sig + c2*sqrsum
+      refsum' = c1*ref*ref + c2*refsum
+      ratio   = if sqrsum == 0
+        then sqrt refsum
+        else sqrt $ refsum/sqrsum
   outA -< sig * ratio
   where
-    sr     = rate (undefined :: p)
-    tpidsr = 2 * pi / sr
-    b      = 2 - cos (fromIntegral ihp * tpidsr)
-    c1     = 1 - c2
-    c2     = b - sqrt (b * b - 1)
+    c1 = 1 - c2
+    c2 = b - sqrt(b*b - 1)
+    b  = 2 - cos(fromIntegral ihp * 2*pi/sr)
+    sr = rate (undefined :: p)
 
 -- Filters
 -- -------
@@ -543,8 +542,9 @@ data BandPassData = BandPassData
   , rsnYt1  :: !Double
   , rsnYt2  :: !Double
   }
+
 rsnDefault :: BandPassData
-rsnDefault = BandPassData (- 1) (- 1) 0 0 0 0 0 0
+rsnDefault = BandPassData (-1) (-1) 0 0 0 0 0 0
 
 -- A second-order resonant (band pass) filter.
 
@@ -568,35 +568,36 @@ filterBandPass scale = proc (sig, kcf, kbw) -> do
     currData <- if kcf == rsnKcf rsnData && kbw == rsnKbw rsnData
       then outA -< rsnData
       else update -< (rsnData, kcf, kbw)
-    let BandPassData{rsnC1 = c1, rsnC2 = c2, rsnC3 = c3, rsnYt1 = yt1, rsnYt2 = yt2}
-                 = currData
-        a        = c1 * sig + c2 * yt1 - c3 * yt2
-        rsnData' = currData{rsnYt1 = a, rsnYt2 = yt1}
+    let
+      rsnData' = currData{rsnYt1=a, rsnYt2=yt1}
+      a        = c1*sig + c2*yt1 - c3*yt2
+      BandPassData{rsnC1=c1, rsnC2=c2, rsnC3=c3, rsnYt1=yt1, rsnYt2=yt2} = currData
   outA -< a
   where
-    sr     = rate (undefined :: p)
-    tpidsr = 2 * pi / sr  -- (note on csound code) mtpdsr = -tpidsr
     update = proc (rsnData, kcf, kbw) -> do
       -- kcf or kbw changed, recalc consts
-      let cosf  = cos $ kcf * tpidsr  -- cos (2pi * freq / rate)
-          c3    = exp $ kbw * tpidsr  -- exp (-2pi * bwidth / rate)  -- Gain for output of delay 2.
-          c3p1  = c3 + 1
-          c3t4  = c3 * 4
-          c2    = c3t4 * cosf / c3p1  -- (Minused) gain for output of delay 1.
-          omc3  = 1 - c3
-          c2sqr = c2 * c2
-          c1    = case scale of       -- Gain for input signal.
-            1 -> omc3 * sqrt (1 - c2sqr / c3t4)
-            2 -> sqrt $ (c3p1 * c3p1 - c2sqr) * omc3 / c3p1
-            _ -> 1.0
-      outA -< rsnData{rsnKcf = kcf, rsnKbw = kbw, rsnCosf = cosf, rsnC1 = c1, rsnC2 = c2, rsnC3 = c3 }
+      let
+        c1    = case scale of     -- Gain for input signal.
+          1 -> omc3*sqrt(1 - c2sqr/c3t4)
+          2 -> sqrt $ (c3p1*c3p1 - c2sqr)*omc3/c3p1
+          _ -> 1.0
+        c2sqr = c2*c2
+        c2    = c3t4*cosf/c3p1    -- (Minused) gain for output of delay 1.
+        omc3  = 1 - c3
+        c3p1  = c3 + 1
+        c3t4  = c3 * 4
+        c3    = exp $ kbw*tpidsr  -- exp (-2pi * bwidth / rate)  -- Gain for output of delay 2.
+        cosf  = cos $ kcf*tpidsr  -- cos ( 2pi * freq   / rate)
+      outA -< rsnData{rsnKcf=kcf, rsnKbw=kbw, rsnCosf=cosf, rsnC1=c1, rsnC2=c2, rsnC3=c3}
+    tpidsr = 2*pi/sr  -- (note on csound code) mtpdsr = -tpidsr
+    sr     = rate (undefined :: p)
 
 -- A band stop filter whose transfer function is the complement of
 -- filterBandPass.
 
 -- Analogous to csound's 'areson' routine.
 
-filterBandStop :: forall p. Clock p => Int -> Signal p (Double, Double, Double) Double
+filterBandStop :: Clock p => Int -> Signal p (Double, Double, Double) Double
 filterBandStop scale = proc (sig, kcf, kbw) -> do
   r <- filterBandPass scale -< (sig, kcf, kbw)
   outA -< sig - r
@@ -608,47 +609,47 @@ sqrt2 = sqrt 2
 
 blpset :: Double -> Double -> ButterData
 blpset freq sr = ButterData a1 a2 a3 a4 a5 where
-  a1    = 1 / (1 + sqrt2 * c + csq)
-  a2    = 2 * a1
+  a1    = 1/(1 + sqrt2*c + csq)
+  a2    = 2*a1
   a3    = a1
-  a4    = 2 * (1 - csq) * a1
-  a5    = (1 - sqrt2 * c + csq) * a1
-  pidsr = pi / sr
-  c     = 1 / tan (pidsr * freq)
-  csq   = c * c
+  a4    = 2*(1 - csq)*a1
+  a5    = (1 - sqrt2*c + csq)*a1
+  c     = 1/tan(pidsr*freq)
+  csq   = c*c
+  pidsr = pi/sr
 
 bhpset :: Double -> Double -> ButterData
 bhpset freq sr = ButterData a1 a2 a3 a4 a5 where
-  a1    = 1 / (1 + sqrt2 * c + csq)
-  a2    = (-2) * a1
+  a1    = 1/(1 + sqrt2*c + csq)
+  a2    = (-2)*a1
   a3    = a1
-  a4    = 2 * (csq - 1) * a1
-  a5    = (1 - sqrt2 * c + csq) * a1
-  pidsr = pi / sr
-  c     = tan (pidsr * freq)
-  csq   = c * c
+  a4    = 2*(csq - 1)*a1
+  a5    = (1 - sqrt2*c + csq)*a1
+  c     = tan(pidsr*freq)
+  csq   = c*c
+  pidsr = pi/sr
 
 bbpset :: Double -> Double -> Double -> ButterData
 bbpset freq band sr = ButterData a1 a2 a3 a4 a5 where
-  a1    = 1 / (1 + c)
+  a1    = 1/(1 + c)
   a2    = 0
   a3    = negate a1
-  a4    = negate (c * d * a1)
-  a5    = (c - 1) * a1
-  pidsr = pi / sr
-  c     = 1 / tan (pidsr * band)
-  d     = 2 * cos (2 * pidsr * freq)
+  a4    = negate (c*d*a1)
+  a5    = (c - 1)*a1
+  c     = 1/tan(pidsr*band)
+  d     = 2*cos(2*pidsr*freq)
+  pidsr = pi/sr
 
 bbrset :: Double -> Double -> Double -> ButterData
 bbrset freq band sr = ButterData a1 a2 a3 a4 a5 where
-  a1    = 1 / (1 + c)
+  a1    = 1/(1 + c)
   a2    = negate d * a1
   a3    = a1
   a4    = a2
-  a5    = (1 - c) * a1
-  pidsr = pi / sr
-  c     = tan (pidsr * band)
-  d     = 2 * cos (2 * pidsr * freq)
+  a5    = (1 - c)*a1
+  c     = tan(pidsr*band)
+  d     = 2*cos(2*pidsr*freq)
+  pidsr = pi/sr
 
 -- A second-order low-pass Butterworth filter, where 'sig' is the input
 -- signal to be filtered, and 'freq' is the cutoff center frequency.
@@ -691,8 +692,9 @@ filterBandStopBW = proc (sig, freq, band) -> butter -< (sig, bbrset freq band sr
 butter :: Clock p => Signal p (Double, ButterData) Double
 butter = proc (sig, ButterData a1 a2 a3 a4 a5) -> do
   rec
-    let t = sig - a4 * y' - a5 * y''
-        y = t * a1 + a2 * y' + a3 * y''
+    let
+      t = sig - a4*y' - a5*y''
+      y = a1*t + a2*y' + a3*y''
     y'  <- delay 0 -< t
     y'' <- delay 0 -< y'
   outA -< y
@@ -717,13 +719,11 @@ filterComb :: Clock p
      -- available memory will permit.
   -> Signal p (Double, Double) Double
 filterComb looptime = proc (sig, rvt) -> do
-  let gain = exp (log001 * looptime / rvt)
+  let gain = exp(log001*looptime/rvt)
   rec
-    r <- del -< sig + r * gain
+    r <- delayLine looptime -< sig + r*gain
   outA -< r
-  where
-    log001 = -6.9078
-    del    = delayLine looptime
+  where log001 = -6.9078
 
 -- A first-order recursive low-pass filter with variable frequency
 -- response. 'hp' is the response curve's half-power point, in Hertz.
@@ -734,10 +734,11 @@ filterComb looptime = proc (sig, rvt) -> do
 filterLowPass :: forall p. Clock p => Signal p (Double, Double) Double
 filterLowPass = proc (sig, hp) -> do
   rec
-    let y' = c1 * sig + c2 * y
-        b = 2 - cos (2 * pi * hp / sr)
-        c2 = b - sqrt (b * b - 1.0)
-        c1 = 1 - c2
+    let
+      y' = c1*sig + c2*y
+      c1 = 1 - c2
+      c2 = b - sqrt(b*b - 1.0)
+      b  = 2 - cos(2*pi*hp/sr)
     y <- delay 0 -< y'
   outA -< y
   where sr = rate (undefined :: p)
@@ -774,7 +775,7 @@ envLine :: forall p. Clock p
   -> Signal p () Double
 envLine a dur b = proc () -> do
   rec
-    y <- delay a -< y + (b-a) * (1 / sr / dur)
+    y <- delay a -< y + (b - a)/(sr*dur)
   outA -< y
   where sr = rate (undefined :: p)
 
@@ -788,7 +789,7 @@ envExpon :: forall p. Clock p
   -> Signal p () Double
 envExpon a dur b = proc () -> do
   rec
-    y <- delay a -< y * pow (b/a) (1 / sr / dur)
+    y <- delay a -< y * pow (b/a) (1/sr/dur)
   outA -< y
   where sr = rate (undefined :: p)
 
@@ -798,7 +799,7 @@ envExpon a dur b = proc () -> do
 data Tab = Tab [Double] !Int !(UArray Int Double)
 
 aAt :: Tab -> Int -> Double
-aAt (Tab _ sz a) i = unsafeAt a (min (sz-1) i)
+aAt (Tab _ sz a) i = unsafeAt a (min (sz - 1) i)
 
 -- Helper function for envLineSeg and envExponSeg.
 
@@ -811,19 +812,20 @@ seghlp :: forall p. Clock p
 seghlp iamps idurs = proc _ -> do
   rec
     let (t', i') = if t >= durs `aAt` i
-          then if i == sz-2 then (t+1, i) else (0, i+1)
-          else (t+1, i)
+          then if i == sz - 2 then (t + 1, i) else (0, i + 1)
+          else (t + 1, i)
     i <- delay 0 -< i'
     t <- delay 0 -< t'
-  let a1 = aAt amps i
-      a2 = aAt amps (i+1)
-      d  = aAt durs i
+  let
+    a1 = aAt amps  i
+    a2 = aAt amps (i + 1)
+    d  = aAt durs  i
   outA -< (a1, a2, t, d)
   where
-    sr   = rate (undefined :: p)
+    amps = Tab iamps  sz      (listArray (0, sz - 1)             iamps )
+    durs = Tab idurs (sz - 1) (listArray (0, sz - 2) (map (* sr) idurs))
     sz   = length iamps
-    amps = Tab iamps sz (listArray (0, sz-1) iamps)
-    durs = Tab idurs (sz-1) (listArray (0, sz-2) (map (*sr) idurs))
+    sr   = rate (undefined :: p)
 
 -- Trace a series of line segments between specified points.
 
@@ -833,9 +835,8 @@ envLineSeg :: Clock p
                -- Needs to be one element fewer than 'amps'.
   -> Signal p () Double
 envLineSeg amps durs = proc () -> do
-  (a1, a2, t, d) <- sf -< ()
-  outA -< a1 + (a2-a1) * (t / d)
-  where sf = seghlp amps durs
+  (a1, a2, t, d) <- seghlp amps durs -< ()
+  outA -< a1 + (a2 - a1)*(t/d)
 
 -- Trace a series of exponential segments between specified points.
 
@@ -845,13 +846,12 @@ envExponSeg :: Clock p
                -- Needs to be one element fewer than 'amps'.
   -> Signal p () Double
 envExponSeg ampinps durs = proc () -> do
-  (a1, a2, t, d) <- sf -< ()
-  outA -< a1 * pow (a2/a1) (t / d)
+  (a1, a2, t, d) <- seghlp amps' durs -< ()
+  outA -< a1 * pow (a2/a1) (t/d)
   where
     amps' = case ampinps of
-      (a:amps) -> max 0.001 a : amps
       []       -> []
-    sf    = seghlp amps' durs
+      (a:amps) -> max 0.001 a : amps
 
 -- Creates a straight-line rise and decay envelope.  Rise modifications
 -- are applied for the first 'rise' seconds, and decay from time 'dur' -
@@ -865,10 +865,7 @@ envASR :: (Clock p)
   -> Double  -- ^ overall duration in seconds.
   -> Double  -- ^ decay time in seconds.
   -> Signal p () Double
-envASR rise dur dec = proc () -> do
-  env <- sf -< ()
-  outA -< env
-  where sf = envLineSeg [0, 1, 1, 0] [rise, dur-rise-dec, dec]
+envASR rise dur dec = proc () -> envLineSeg [0, 1, 1, 0] [rise, dur - rise - dec, dec] -< ()
 
 -- Apply an envelope consisting of 3 segments:
 --   1. stored function rise shape
@@ -913,16 +910,14 @@ envCSEnvlpx rise dur dec tab atss atdec = proc () -> do
     i  <- countUp -< ()
     let i' = fromIntegral i
     y  <- delay (readFromTableRaw tab 0) -< y'
-    y' <- case (i' < rise * sr, i' < (dur-dec) * sr) of
-          (True,  _    ) -> table tab False -< i' / (rise*sr+0.5)
-          (False, True ) -> outA -< y * mlt1
-          (False, False) -> outA -< y * mlt2
+    y' <- case (i' < rise*sr, i' < (dur - dec)*sr) of
+          (True,  _    ) -> table tab False -< i'/(rise*sr + 0.5)
+          (False, True ) -> outA -< y * pow atss  (1/cnt1)
+          (False, False) -> outA -< y * pow atdec (1/sr/dec)
   outA -< y'
   where
+    cnt1 = (dur - rise - dec)*sr + 0.5
     sr   = rate (undefined :: p)
-    cnt1 = (dur - rise - dec) * sr + 0.5
-    mlt1 = pow atss  (1 / cnt1)
-    mlt2 = pow atdec (1 / sr / dec)
 
 -- GEN routines
 -- ------------
@@ -1004,8 +999,8 @@ tableSines3_ :: [(PartialNum, PartialStrength, PhaseOffset)] -> Bool -> Int -> T
 tableSines3_ ps = funToTable (makeCompositeSineFun ps)
 
 tableSinesF :: (Floating a, Enum a) => [a] -> a -> a
-tableSinesF pss x = sum (zipWith (*) [ sin (phase * pn) | pn <- [1..] ] pss)
-  where phase = 2 * pi * x
+tableSinesF pss x = sum (zipWith (*) [ sin(phase*pn) | pn <- [1..] ] pss)
+  where phase = 2*pi*x
 
 -- Analogous to csound's gen10 routine.
 
@@ -1040,14 +1035,14 @@ tableBessF :: Floating s => s -> s -> s
 tableBessF xint x = log $ 1 + sum (zipWith (*)
   [ 3.5156229, 3.0899424, 1.2067492, 0.2659732, 0.0360768, 0.0045813 ]
   (iterate (* tsquare) tsquare))
-  where tsquare = x * x * xint * xint / 3.75 / 3.75
+  where tsquare = x*x*xint*xint/3.75/3.75
 
 -- Utility functions for tableExpon and tableLinear.
 
 normalizeSegs :: [(SegLength, entPt)] -> [(SegLength, entPt)]
 normalizeSegs segs = map (\(x, y) -> (x*fact, y)) segs where
+  fact = if s > 1 then 1/s else 1  -- don't force max<1 up to max=1
   s    = sum (map fst segs)
-  fact = if s > 1 then 1/s else 1 -- don't force max<1 up to max=1
 
 interpLine ::
      StartPt
@@ -1061,7 +1056,7 @@ interpLine ::
      -- The x-coordinate for which to find the
      -- corresponding f(x)=y.
   -> Double
-interpLine sp []     d f = 0  -- catchall case
+interpLine _  []     _ _ = 0  -- catchall case
 interpLine sp points f d = f (0, sp) (normalizeSegs points) d
 
 -- The exponential interpolation function stretches e^x between two
@@ -1077,14 +1072,14 @@ interpExpLine ::
      -- The target x-coordinate to find a corresponding
      -- y value for
   -> Double
-interpExpLine (s1, e1) []             d = e1  -- termination case, end of list
-interpExpLine (s1, e1) ((s2, e2) : t) d
-  | d > s2    = interpExpLine (s2, e2) t (d-s2)
-  | s2 <= 0   = e2
-  | otherwise = abs h * exp (x/s2) - 1 / (exp 1 - 1) + min e1 e2
+interpExpLine (_, e1) []           _ = e1  -- termination case, end of list
+interpExpLine (_, e1) ((s2, e2):t) d
+  | d > s2    = interpExpLine (s2, e2) t (d - s2)
+  | s2 <= 0   = e2  -- accomodate discontinuities
+  | otherwise = abs h * exp (x/s2) - 1/(exp 1 - 1) + min e1 e2
   where
-    h = e2 - e1
     x = if h < 0 then s2 - d else d
+    h = e2 - e1
 
 interpStraightLine ::
      (Double, StartPt)
@@ -1096,14 +1091,14 @@ interpStraightLine ::
      -- The target x-coordinate to find a corresponding
      -- y value for
   -> Double
-interpStraightLine (s1, e1) []             d = e1  -- termination case, end of list
-interpStraightLine (s1, e1) ((s2, e2) : t) d
-  | d > s2    = interpStraightLine (s2, e2) t (d-s2)
+interpStraightLine (_, e1) []             _ = e1  -- termination case, end of list
+interpStraightLine (_, e1) ((s2, e2) : t) d
+  | d > s2    = interpStraightLine (s2, e2) t (d - s2)
   | s2 <= 0   = e2
-  | otherwise = e1 + (s*d)
+  | otherwise = e1 + s*d  -- start point plus slope times distance
   where
-    h = e2 - e1
-    s = h / s2     -- slope of triangle
+    s = h/s2     -- slope of triangle
+    h = e2 - e1  -- height of triangle
 
 -- Function to find a particular point at a particular strength
 
@@ -1114,9 +1109,9 @@ makeSineFun ::
   -> Double
      -- The x coordinate for which to find f(x)=y
   -> Double
-makeSineFun (pNum, pStrength, pOffset) x = pStrength * sin (x' * pNum + po) where
-  x' = x * 2 * pi              -- convert [0, 1] to [0, pi] radians
-  po = (pOffset/360) * 2 * pi  -- convert [0, 360] to [0, pi] radians
+makeSineFun (pNum, pStrength, pOffset) x = pStrength*sin(pNum*x' + po) where
+  x' = x*2*pi              -- convert [0, 1] to [0, pi] radians
+  po = (pOffset/360)*2*pi  -- convert [0, 360] to [0, pi] radians
 
 -- For a particular point, sum all partials.
 
@@ -1128,20 +1123,19 @@ makeCompositeSineFun ::
   -> Double
      -- The x coordinate for which to find f(x)=y
   -> Double
-makeCompositeSineFun ps x = foldr (\ p -> (+) (makeSineFun p x)) 0 ps
-
+makeCompositeSineFun ps x = foldr (\p -> (makeSineFun p x +)) 0 ps
 
 -- --------------------------------------
 -- -- Time events
 -- --------------------------------------
 
-samples :: forall p. Clock p => Signal p () (SEvent ())
+samples :: Clock p => Signal p () (SEvent ())
 samples = constA (Just ())
 
 timeBuilder :: forall p. Clock p => Double -> Signal p () (SEvent ())
 timeBuilder d = proc _ -> do
   rec
-    i <- delay 0 -< if i >= r then i-r else i+1
+    i <- delay 0 -< if i >= r then i - r else i + 1
   outA -< if i < 1 then Just () else Nothing
   where r = rate (undefined :: p) * d
 
@@ -1155,6 +1149,6 @@ countTime :: Clock p => Int -> Signal p () (SEvent ()) -> Signal p () (SEvent ()
 countTime n t = proc _ -> do
   e <- t -< ()
   rec
-    i <- delay 0 -< maybe i' (const $ i'+1) e
+    i <- delay 0 -< maybe i' (const $ i' + 1) e
     let (i', o) = if i == n then (0, Just ()) else (i, Nothing)
   outA -< o

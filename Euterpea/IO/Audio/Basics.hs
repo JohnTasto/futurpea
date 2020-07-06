@@ -47,7 +47,7 @@ upsample :: forall a b c p1 p2. (ArrowChoice a, ArrowCircuit a, Clock p1, Clock 
 upsample f = g where
   g       = proc x -> do
               rec
-                cc <- delay 0 -< if cc >= r-1 then 0 else cc+1
+                cc <- delay 0 -< if cc >= r-1 then 0 else cc + 1
                 y <- if cc == 0
                   then ArrowP (strip f) -< x
                   else delay zero       -< y

@@ -5,6 +5,7 @@ import Codec.Midi
   , FileType (MultiTrack, SingleTrack)
   , Message (NoteOff, NoteOn, ProgramChange, TempoChange)
   , Midi (Midi)
+  , Tempo
   , Ticks
   , TimeDiv (TicksPerBeat)
   , fromAbsTime
@@ -28,10 +29,13 @@ type UserPatchMap = [(InstrumentName, Channel)]
 
 makeGMMap :: [InstrumentName] -> UserPatchMap
 makeGMMap = mkGMMap 0 where
+
+  mkGMMap :: Int -> [InstrumentName] -> UserPatchMap
   mkGMMap _ []                 = []
   mkGMMap n _ | n >= 15        = error "makeGMMap: too many instruments."
   mkGMMap n (Percussion : ins) = (Percussion, 9) : mkGMMap n ins
-  mkGMMap n (i : ins)          = (i, chanList !! n) : mkGMMap (n+1) ins
+  mkGMMap n (i : ins)          = (i, chanList !! n) : mkGMMap (n + 1) ins
+
   chanList                     = [0..8] ++ [10..15]  -- channel 9 is for percussion
 
 upmLookup :: UserPatchMap -> InstrumentName -> (Channel, ProgNum)
@@ -43,12 +47,14 @@ toMidi = toMidiUPM defUpm
 
 toMidiUPM :: UserPatchMap -> [MEvent] -> Midi
 toMidiUPM upm pf = Midi (if length split == 1 then SingleTrack else MultiTrack)
-  (TicksPerBeat division) $ fromAbsTime . mevsToMessages rightMap <$> split where
-  split    = splitByInst pf
-  insts    = map fst split
-  rightMap = if allValid upm insts then upm else makeGMMap insts
+  (TicksPerBeat division) $ fromAbsTime . mevsToMessages rightMap <$> split
+  where
+    rightMap = if allValid upm insts then upm else makeGMMap insts
+    insts    = map fst split
+    split    = splitByInst pf
 
-division = 96 :: Int
+division :: Int
+division = 96
 
 allValid :: UserPatchMap -> [InstrumentName] -> Bool
 allValid = all . lookupB
@@ -64,21 +70,27 @@ splitByInst pf = (i, pf1) : splitByInst pf2 where
 
 type MidiEvent = (Ticks, Message)
 
+defST :: Tempo  -- derived
 defST = 500000
 
 mevsToMessages :: UserPatchMap -> (InstrumentName, [MEvent]) -> [MidiEvent]
-mevsToMessages upm (inm, pf) = setupInst : setTempo : loop pf where
-  (chan, progNum) = upmLookup upm inm
-  setupInst       = (0, ProgramChange chan progNum)
-  setTempo        = (0, TempoChange defST)
-  loop []         = []
-  loop (e:es)     = mev1 : insertMEvent mev2 (loop es) where (mev1, mev2) = mkMEvents chan e
+mevsToMessages upm (inm, pf) = setupInst : setTempo : loop pf
+  where
+    setupInst       = (0, ProgramChange chan progNum)
+    (chan, progNum) = upmLookup upm inm
+    setTempo        = (0, TempoChange defST)
+
+    loop :: [MEvent] -> [MidiEvent]
+    loop []         = []
+    loop (e:es)     = mev1 : insertMEvent mev2 (loop es) where (mev1, mev2) = mkMEvents chan e
 
 mkMEvents :: Channel -> MEvent -> (MidiEvent, MidiEvent)
-mkMEvents mChan MEvent {eTime = t, ePitch = p, eDur = d, eVol = v} =
-  ((toDelta t, NoteOn mChan p v'), (toDelta (t + d), NoteOff mChan p v')) where
-  v'        = max 0 (min 127 (fromIntegral v))
-  toDelta t = round (t * 2.0 * fromIntegral division)
+mkMEvents mChan MEvent {eTime=t, ePitch=p, eDur=d, eVol=v} =
+  ((toDelta t, NoteOn mChan p v'), (toDelta (t + d), NoteOff mChan p v'))
+  where v' = max 0 (min 127 (fromIntegral v))
+
+toDelta :: (RealFrac a, Integral b) => a -> b  -- derived
+toDelta t = round (t * 2.0 * fromIntegral division)
 
 insertMEvent :: MidiEvent -> [MidiEvent] -> [MidiEvent]
 insertMEvent mev1         []                          = [mev1]

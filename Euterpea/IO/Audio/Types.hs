@@ -39,7 +39,7 @@ instance AudioSample Double where
 
 instance AudioSample (Double, Double) where
   zero = (0, 0)
-  mix (a, b) (c, d) = (a+c, b+d)
+  mix (a, b) (c, d) = (a + c, b + d)
   collapse (a, b) = [a, b]
   numChans _ = 2
 

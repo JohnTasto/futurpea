@@ -53,10 +53,10 @@ type Evt a = (Double, NoteEvt a)  -- Timestamp in seconds, and the note event
 eventToEvtPair :: InstrMap a -> MEvent -> Int -> [Evt a]
 eventToEvtPair imap MEvent {eTime, eInst, ePitch, eDur, eVol, eParams} nid =
   [(tOn, NoteOn nid sf), (tOn + tDur, NoteOff nid)] where
-    instr = lookupInstr eInst imap
+    sf    = instr eDur ePitch eVol eParams
     tOn   = fromRational eTime
     tDur  = fromRational eDur :: Double
-    sf    = instr eDur ePitch eVol eParams
+    instr = lookupInstr eInst imap
 
 -- | Turn a Performance into an SF of NoteOn/NoteOffs.
 -- For each note, generate a unique id to tag the NoteOn and NoteOffs.
@@ -78,6 +78,7 @@ toEvtSF pf imap = proc _ -> do
 -- are not used here, but they are expected to be the same.
 modSF :: IM.IntMap a -> [Evt a] -> IM.IntMap a
 modSF = foldl' mod where
+  mod :: IM.IntMap a -> (b, NoteEvt a) -> IM.IntMap a  -- derived
   mod m (_, NoteOn nid sf) = IM.insert nid sf m
   mod m (_, NoteOff nid)   = IM.delete nid m
 
@@ -93,7 +94,6 @@ pSwitch :: forall p col a. (Clock p, Functor col)
   -> Signal p () (col a)
      -- The resulting collection of output values obtained from
      -- running all SFs in the collection.
-
 pSwitch col esig mod = proc _ -> do
   evts <- esig -< ()
   rec
@@ -109,7 +109,7 @@ renderSF :: (Clock p, ToMusic1 a, AudioSample b)
   -> InstrMap (Signal p () b)
   -> (Double, Signal p () b)
 renderSF m im = (fromRational d, sf) where
-  (pf, d) = perform1Dur $ toMusic1 m  -- Updated 16-Dec-2015
-  evtsf   = toEvtSF pf im
-  allsf   = pSwitch IM.empty evtsf modSF
   sf      = allsf >>> arr (foldl' mix zero . IM.elems)  -- add up all samples
+  allsf   = pSwitch IM.empty evtsf modSF
+  evtsf   = toEvtSF pf im
+  (pf, d) = perform1Dur $ toMusic1 m  -- Updated 16-Dec-2015

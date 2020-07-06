@@ -244,7 +244,7 @@ dden = 7/32;  ddenr = rest dden -- double-dotted eighth note rest
 -- >>> pitch 60 = (C, 4)
 -- >>> pitch 127 = (G, 9)
 absPitch :: Pitch -> AbsPitch
-absPitch (pc, oct) = 12*(oct+1) + pcToInt pc
+absPitch (pc, oct) = 12*(oct + 1) + pcToInt pc
 
 pcToInt :: PitchClass -> Int
 pcToInt pc = case pc of
@@ -257,7 +257,7 @@ pcToInt pc = case pc of
   Bff ->  9;  Bf -> 10;  B -> 11;  Bs -> 12;  Bss -> 13;
 
 pitch :: AbsPitch -> Pitch
-pitch ap = ([C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B] !! n, oct-1)
+pitch ap = ([C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B] !! n, oct - 1)
   where (oct, n) = divMod ap 12
 
 trans :: Int -> Pitch -> Pitch
@@ -275,8 +275,8 @@ offset :: Dur -> Music a -> Music a
 offset d m = rest d :+: m
 
 times :: Int -> Music a -> Music a
-times 0 m = rest 0
-times n m = m :+: times (n-1) m
+times 0 _ = rest 0
+times n m = m :+: times (n - 1) m
 
 forever :: Music a -> Music a
 forever m = m :+: forever m
@@ -299,6 +299,8 @@ invert m = if null pRef
   else invertAt (head pRef) m
   where
     pRef = mFold pFun (++) (++) (flip const) m
+
+    pFun :: Primitive a -> [a]  -- derived
     pFun (Note d p) = [p]
     pFun _          = []
 
@@ -308,6 +310,8 @@ invert1 m = if null pRef
   else invertAt1 (head pRef) m
   where
     pRef = mFold pFun (++) (++) (flip const) m
+
+    pFun :: Primitive (a, b) -> [a] -- derived
     pFun (Note d (p, x)) = [p]
     pFun _               = []
 
@@ -335,7 +339,7 @@ dur (Modify (Tempo r) m) = dur m / r
 dur (Modify _ m)         = dur m
 
 cut :: Dur -> Music a -> Music a
-cut d m | d <= 0           = rest 0
+cut d _ | d <= 0           = rest 0
 cut d (Prim (Note nd p))   = note (min nd d) p
 cut d (Prim (Rest rd))     = rest (min rd d)
 cut d (m1 :+: m2)          = m1' :+: cut (d - dur m1') m2 where m1' = cut d m1
@@ -345,8 +349,8 @@ cut d (Modify c m)         = Modify c (cut d m)
 
 remove :: Dur -> Music a -> Music a
 remove d m | d <= 0           = m
-remove d (Prim (Note nd p))   = note (max (nd-d) 0) p
-remove d (Prim (Rest rd))     = rest (max (rd-d) 0)
+remove d (Prim (Note nd p))   = note (max (nd - d) 0) p
+remove d (Prim (Rest rd))     = rest (max (rd - d) 0)
 remove d (m1 :=: m2)          = remove d m1 :=: remove d m2
 remove d (m1 :+: m2)          = remove d m1 :+: remove (d - dur m1) m2
 remove d (Modify (Tempo r) m) = tempo r (remove (d*r) m)
@@ -390,7 +394,7 @@ minL [d1]     d2 = min d1 d2
 minL (d1:ds1) d2 = if d1 < d2 then minL ds1 d2 else d2
 
 cutL :: LazyDur -> Music a -> Music a
-cutL []     m                = rest 0
+cutL []     _                = rest 0
 cutL (d:ds) m | d <= 0       = cutL ds m
 cutL ld (Prim (Note d p))    = note (minL ld d) p
 cutL ld (Prim (Rest d))      = rest (minL ld d)
@@ -426,7 +430,7 @@ perc ps dur = instrument Percussion $ note dur $ pitch $ fromEnum ps + 35
 instance Functor Primitive where
 --fmap :: (a -> b) -> Primitive a -> Primitive b
   fmap f (Note d x) = Note d (f x)
-  fmap f (Rest d)   = Rest d
+  fmap _ (Rest d)   = Rest d
 
 instance Functor Music where
 --mMap :: (a -> b) -> Music a -> Music b
@@ -468,7 +472,7 @@ changeInstrument :: InstrumentName -> Music a -> Music a
 changeInstrument i m = Modify (Instrument i) $ removeInstruments m
 
 removeInstruments :: Music a -> Music a
-removeInstruments (Modify (Instrument i) m) = removeInstruments m
+removeInstruments (Modify (Instrument _) m) = removeInstruments m
 removeInstruments (Modify c              m) = Modify c $ removeInstruments m
 removeInstruments (m1 :+: m2)               = removeInstruments m1 :+: removeInstruments m2
 removeInstruments (m1 :=: m2)               = removeInstruments m1 :=: removeInstruments m2

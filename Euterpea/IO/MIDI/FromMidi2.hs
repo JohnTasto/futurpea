@@ -92,7 +92,7 @@ restructure = parseFeaturesI
 
 -- | Other exported features are related to the Chunk datatype.
 
-type Onset = Dur -- to clarify some type signatures
+type Onset = Dur  -- to clarify some type signatures
 
 -- | A Chunk is the data structure used to group events by the algorithm
 -- described at the top of this file. Par and Chord correspond to features
@@ -104,8 +104,7 @@ data Chunk = Par [Chunk] | Seq [Chunk] | Chord [Chunk] | E MEvent | R Onset Dur
 
 -- | Initially, each MEvent is placed in its own chunk.
 initChunk :: [MEvent] -> [Chunk]
-initChunk mevs = map E mevs
-  where mevs' = sortBy sortFun mevs
+initChunk mevs = map E $ sortBy sortFun mevs
 
 -- | The chunkChord function looks for chunks that share the same
 -- onset and duration and places them together in Chord chunks.
@@ -113,10 +112,8 @@ chunkChord :: [Chunk] -> [Chunk]
 chunkChord []     = []
 chunkChord (c:cs) = if null cChord
   then c                : chunkChord cs
-  else Chord (c:cChord) : chunkChord notInChord
-  where
-    cChord     = filter (chordWith c) cs
-    notInChord = filter (`notElem` cChord) cs
+  else Chord (c:cChord) : chunkChord (filter (`notElem` cChord) cs)
+  where cChord = filter (chordWith c) cs
 
 chordWith :: Chunk -> Chunk -> Bool
 chordWith c0 c = chunkOnset c == chunkOnset c0 && chunkDur c == chunkDur c0
@@ -129,10 +126,8 @@ chunkMel :: [Chunk] -> [Chunk]
 chunkMel []       = []
 chunkMel x@(c:cs) = if null cMel
   then c        : chunkMel cs
-  else Seq cMel : chunkMel notInMel
-  where
-    cMel     = buildMelFrom (chunkOnset c) x  -- get ALL possible melody elements
-    notInMel = filter (`notElem` cMel) x
+  else Seq cMel : chunkMel (filter (`notElem` cMel) x)
+  where cMel = buildMelFrom (chunkOnset c) x  -- get ALL possible melody elements
 
 buildMelFrom :: Onset -> [Chunk] -> [Chunk]
 buildMelFrom t []     = []
@@ -148,14 +143,12 @@ chunkSeqs :: [Chunk] -> [Chunk]
 chunkSeqs []       = []
 chunkSeqs x@(c:cs) = if s == [c]
   then c : chunkSeqs cs
-  else Seq s : chunkSeqs notInS
-  where
-    s      = seqWithRests (chunkOnset c) x
-    notInS = filter (`notElem` s) x
+  else Seq s : chunkSeqs (filter (`notElem` s) x)
+  where s = seqWithRests (chunkOnset c) x
 
 seqWithRests :: Onset -> [Chunk] -> [Chunk]
 seqWithRests t [] = []
-seqWithRests t x@(c:cs)
+seqWithRests t (c:cs)
   | dt == 0   = c : seqWithRests (tc + chunkDur c) cs
   | dt > 0    = R t dt : c : seqWithRests (tc + chunkDur c) cs
   | otherwise = seqWithRests t cs
@@ -175,7 +168,7 @@ chunkEvents = Par . chunkSeqs . chunkMel . chunkChord . initChunk
 -- deals with duration as whole notes (1 whole note = 2 seconds).
 chunkToMusic :: Chunk -> Music (Pitch, Volume)
 chunkToMusic (E     e) = note (eDur e / 2) (pitch $ ePitch e, eVol e)
-chunkToMusic (R   o d) = rest (d/2)
+chunkToMusic (R   _ d) = rest (d/2)
 chunkToMusic (Seq   x) = line(map chunkToMusic x)
 chunkToMusic (Chord x) = chord(map chunkToMusic x)
 chunkToMusic (Par   x) = chord $ map (\v -> rest (chunkOnset v / 2) :+: chunkToMusic v) x
@@ -189,9 +182,8 @@ parseFeatures = removeZeros . chunkToMusic . chunkEvents . perform
 
 parseFeaturesI :: (ToMusic1 a) => Music a -> Music (Pitch, Volume)
 parseFeaturesI m = chord $ zipWith instrument iList parsesI where
-  mevs           = perform m
-  (iList, mevsI) = unzip $ splitByInst mevs
   parsesI        = removeZeros . chunkToMusic . chunkEvents <$> mevsI
+  (iList, mevsI) = unzip $ splitByInst $ perform m
 
 -- Utility Functions and Type Class Instances
 
@@ -203,8 +195,10 @@ doubleShow x = show (fromRational x :: Double)
 pcShow :: AbsPitch -> String
 pcShow = show . fst . pitch
 
-listShow, listShowN :: (Show a) => [a] -> String
-listShow  x = "[" ++ intercalate ", " (show <$> x) ++ "]"
+listShow :: (Show a) => [a] -> String
+listShow x = "[" ++ intercalate ", " (show <$> x) ++ "]"
+
+listShowN :: (Show a) => [a] -> String
 listShowN x = "[\n    " ++ intercalate ",\n    " (show <$> x) ++ "\n]"
 
 listShowX :: (Show a) => Int -> [a] -> String
@@ -230,7 +224,7 @@ chunkOnset (Seq   x) = if null x then error "Empty Seq!"   else chunkOnset $ hea
 chunkOnset (Chord x) = if null x then error "Empty Chord!" else chunkOnset $ head x
 chunkOnset (Par   x) = if null x then 0                    else minimum $ chunkOnset <$> x
 chunkOnset (E     e) = eTime e
-chunkOnset (R   o d) = o
+chunkOnset (R   o _) = o
 
 chunkEnd :: Chunk -> Onset
 chunkEnd (Seq   x) = if null x then error "Empty Seq!"   else chunkEnd $ last x
@@ -244,7 +238,7 @@ chunkDur (Seq   x) = if null x then error "Empty Seq!"   else sum $ chunkDur <$>
 chunkDur (Chord x) = if null x then error "Empty Chord!" else chunkDur (head x)
 chunkDur c@(Par x) = if null x then 0                    else chunkEnd c - chunkOnset c
 chunkDur (E     e) = eDur e
-chunkDur (R   o d) = d
+chunkDur (R   _ d) = d
 
 -- Special sorting function for MEvents.
 
