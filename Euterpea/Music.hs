@@ -20,6 +20,11 @@ data Primitive a
   | Rest Dur
   deriving (Show, Eq, Ord)
 
+instance Functor Primitive where
+--fmap :: (a -> b) -> Primitive a -> Primitive b
+  fmap f (Note d x) = Note d (f x)
+  fmap _ (Rest d)   = Rest d
+
 data Music a
   = Prim (Primitive a)        -- ^ primitive value
   | Music a :+: Music a       -- ^ sequential composition
@@ -28,6 +33,26 @@ data Music a
   deriving (Show, Eq, Ord)
 
 infixr 5 :+:, :=:
+
+instance Functor Music where
+--mMap :: (a -> b) -> Music a -> Music b
+  fmap f (Prim p)     = Prim (fmap f p)
+  fmap f (m1 :+: m2)  = fmap f m1 :+: fmap f m2
+  fmap f (m1 :=: m2)  = fmap f m1 :=: fmap f m2
+  fmap f (Modify c m) = Modify c (fmap f m)
+
+mFold ::
+     (Primitive a -> b)
+  -> (b -> b -> b)
+  -> (b -> b -> b)
+  -> (Control -> b -> b)
+  -> Music a -> b
+mFold f (+:) (=:) g m = case m of
+  Prim p     -> f p
+  m1 :+: m2  -> recr m1 +: recr m2
+  m1 :=: m2  -> recr m1 =: recr m2
+  Modify c m -> g c (recr m)
+  where recr = mFold f (+:) (=:) g
 
 data Control
   = Tempo      Rational           -- ^ scale the tempo
@@ -45,50 +70,56 @@ data Mode
   deriving (Show, Eq, Ord)
 
 data InstrumentName
-  = AcousticGrandPiano   | BrightAcousticPiano | ElectricGrandPiano
-  | HonkyTonkPiano       | RhodesPiano         | ChorusedPiano
-  | Harpsichord          | Clavinet            | Celesta
-  | Glockenspiel         | MusicBox            | Vibraphone
-  | Marimba              | Xylophone           | TubularBells
-  | Dulcimer             | HammondOrgan        | PercussiveOrgan
-  | RockOrgan            | ChurchOrgan         | ReedOrgan
-  | Accordion            | Harmonica           | TangoAccordion
-  | AcousticGuitarNylon  | AcousticGuitarSteel | ElectricGuitarJazz
-  | ElectricGuitarClean  | ElectricGuitarMuted | OverdrivenGuitar
-  | DistortionGuitar     | GuitarHarmonics     | AcousticBass
-  | ElectricBassFingered | ElectricBassPicked  | FretlessBass
-  | SlapBass1            | SlapBass2           | SynthBass1
-  | SynthBass2           | Violin              | Viola
-  | Cello                | Contrabass          | TremoloStrings
-  | PizzicatoStrings     | OrchestralHarp      | Timpani
-  | StringEnsemble1      | StringEnsemble2     | SynthStrings1
-  | SynthStrings2        | ChoirAahs           | VoiceOohs
-  | SynthVoice           | OrchestraHit        | Trumpet
-  | Trombone             | Tuba                | MutedTrumpet
-  | FrenchHorn           | BrassSection        | SynthBrass1
-  | SynthBrass2          | SopranoSax          | AltoSax
-  | TenorSax             | BaritoneSax         | Oboe
-  | Bassoon              | EnglishHorn         | Clarinet
-  | Piccolo              | Flute               | Recorder
-  | PanFlute             | BlownBottle         | Shakuhachi
-  | Whistle              | Ocarina             | Lead1Square
-  | Lead2Sawtooth        | Lead3Calliope       | Lead4Chiff
-  | Lead5Charang         | Lead6Voice          | Lead7Fifths
-  | Lead8BassLead        | Pad1NewAge          | Pad2Warm
-  | Pad3Polysynth        | Pad4Choir           | Pad5Bowed
-  | Pad6Metallic         | Pad7Halo            | Pad8Sweep
-  | FX1Train             | FX2Soundtrack       | FX3Crystal
-  | FX4Atmosphere        | FX5Brightness       | FX6Goblins
-  | FX7Echoes            | FX8SciFi            | Sitar
-  | Banjo                | Shamisen            | Koto
-  | Kalimba              | Bagpipe             | Fiddle
-  | Shanai               | TinkleBell          | Agogo
-  | SteelDrums           | Woodblock           | TaikoDrum
-  | MelodicDrum          | SynthDrum           | ReverseCymbal
-  | GuitarFretNoise      | BreathNoise         | Seashore
-  | BirdTweet            | TelephoneRing       | Helicopter
-  | Applause             | Gunshot             | Percussion
-  | CustomInstrument String
+  -- |   0. Piano
+  = AcousticGrandPiano   | BrightAcousticPiano  | ElectricGrandPiano   | HonkyTonkPiano
+  | RhodesPiano          | ChorusedPiano        | Harpsichord          | Clavinet
+  -- |   8. Chromatic Percussion
+  | Celesta              | Glockenspiel         | MusicBox             | Vibraphone
+  | Marimba              | Xylophone            | TubularBells         | Dulcimer
+  -- |  16. Organ
+  | HammondOrgan         | PercussiveOrgan      | RockOrgan            | ChurchOrgan
+  | ReedOrgan            | Accordion            | Harmonica            | TangoAccordion
+  -- |  24. Guitar
+  | AcousticGuitarNylon  | AcousticGuitarSteel  | ElectricGuitarJazz   | ElectricGuitarClean
+  | ElectricGuitarMuted  | OverdrivenGuitar     | DistortionGuitar     | GuitarHarmonics
+  -- |  32. Bass
+  | AcousticBass         | ElectricBassFingered | ElectricBassPicked   | FretlessBass
+  | SlapBass1            | SlapBass2            | SynthBass1           | SynthBass2
+  -- |  40. Strings
+  | Violin               | Viola                | Cello                | Contrabass
+  | TremoloStrings       | PizzicatoStrings     | OrchestralHarp       | Timpani
+  -- |  48. Ensemble
+  | StringEnsemble1      | StringEnsemble2      | SynthStrings1        | SynthStrings2
+  | ChoirAahs            | VoiceOohs            | SynthVoice           | OrchestraHit
+  -- |  56. Brass
+  | Trumpet              | Trombone             | Tuba                 | MutedTrumpet
+  | FrenchHorn           | BrassSection         | SynthBrass1          | SynthBrass2
+  -- |  64. Reed
+  | SopranoSax           | AltoSax              | TenorSax             | BaritoneSax
+  | Oboe                 | Bassoon              | EnglishHorn          | Clarinet
+  -- |  72. Pipe
+  | Piccolo              | Flute                | Recorder             | PanFlute
+  | BlownBottle          | Shakuhachi           | Whistle              | Ocarina
+  -- |  80. Synth Lead
+  | Lead1Square          | Lead2Sawtooth        | Lead3Calliope        | Lead4Chiff
+  | Lead5Charang         | Lead6Voice           | Lead7Fifths          | Lead8BassLead
+  -- |  88. Synth Pad
+  | Pad1NewAge           | Pad2Warm             | Pad3Polysynth        | Pad4Choir
+  | Pad5Bowed            | Pad6Metallic         | Pad7Halo             | Pad8Sweep
+  -- |  96. Synth Effects
+  | FX1Train             | FX2Soundtrack        | FX3Crystal           | FX4Atmosphere
+  | FX5Brightness        | FX6Goblins           | FX7Echoes            | FX8SciFi
+  -- | 104. Ethnic
+  | Sitar                | Banjo                | Shamisen             | Koto
+  | Kalimba              | Bagpipe              | Fiddle               | Shanai
+  -- | 112. Percussive
+  | TinkleBell           | Agogo                | SteelDrums           | Woodblock
+  | TaikoDrum            | MelodicDrum          | SynthDrum            | ReverseCymbal
+  -- | 120. Sound Effects
+  | GuitarFretNoise      | BreathNoise          | Seashore             | BirdTweet
+  | TelephoneRing        | Helicopter           | Applause             | Gunshot
+  -- | Etc
+  | Percussion           | CustomInstrument String
   deriving (Show, Eq, Ord)
 
 data PhraseAttribute
@@ -426,31 +457,6 @@ data PercussionSound
 
 perc :: PercussionSound -> Dur -> Music Pitch
 perc ps dur = instrument Percussion $ note dur $ pitch $ fromEnum ps + 35
-
-instance Functor Primitive where
---fmap :: (a -> b) -> Primitive a -> Primitive b
-  fmap f (Note d x) = Note d (f x)
-  fmap _ (Rest d)   = Rest d
-
-instance Functor Music where
---mMap :: (a -> b) -> Music a -> Music b
-  fmap f (Prim p)     = Prim (fmap f p)
-  fmap f (m1 :+: m2)  = fmap f m1 :+: fmap f m2
-  fmap f (m1 :=: m2)  = fmap f m1 :=: fmap f m2
-  fmap f (Modify c m) = Modify c (fmap f m)
-
-mFold ::
-     (Primitive a -> b)
-  -> (b -> b -> b)
-  -> (b -> b -> b)
-  -> (Control -> b -> b)
-  -> Music a -> b
-mFold f (+:) (=:) g m = case m of
-  Prim p     -> f p
-  m1 :+: m2  -> recr m1 +: recr m2
-  m1 :=: m2  -> recr m1 =: recr m2
-  Modify c m -> g c (recr m)
-  where recr = mFold f (+:) (=:) g
 
 -- | Sometimes we may wish to alter the internal structure of a Music value
 -- rather than wrapping it with Modify. The following functions allow this.
